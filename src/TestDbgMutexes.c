@@ -283,6 +283,8 @@ static DBG_MTX* DbgMutexLockAddr(DBG_MTX* p_debug_mutex, void* address, uint64_t
 #endif
         return NULL;
 
+    printf("TID: 0x%lx Locked mutex at: %p\r\n", pthread_self(), &p_debug_mutex->mutex);
+
     return p_debug_mutex;
 }
 
