@@ -104,6 +104,8 @@ typedef struct /* __attribute__((packed)) */
     #ifdef __DBG_MTX_FL__
     char            file_name[DBG_MTX_MAX_FILE_NAME_LEN + 1];
     unsigned long   line;
+    #elif __DBG_MTX_BT__
+    // Allocate some memory for a full stack backtrace to be stored. Which external library to use is yet to be defined.
     #else
     void*           address;
     #endif
