@@ -7,9 +7,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
-#ifndef __DBG_MTX_FL__
 #include <limits.h>
-#endif
 
 /*****************************************/
 
@@ -26,8 +24,6 @@
 
 #define DBG_MTX_MSG_ERR_THREAD_CREATION "Could not initialize thread <%d>.\r\n"
 
-#ifndef __DBG_MTX_FL__
-
 #define DBG_MTX_MAX_FILE_AND_LINE_LEN       (uint8_t)200
 #define DBG_MTX_PROC_MAX_LEN                (uint16_t)256
 #define DBG_MTX_PROC_MAPS_PATH              "/proc/self/maps"
@@ -42,12 +38,6 @@
 #define DBG_MTX_FN_PATH_HALF_DELIMITER          "%s defined at "
 
 #define DBG_MTX_MSG_ERR_MUTEX_ACQUISITION       "%sThread with ID <0x%lx> cannot acquire mutex at <%p> (%s). Locked previously at: <%s (%p)> by thread with ID: <0x%lx>\r\n"
-
-#else
-
-#define DBG_MTX_MSG_ERR_MUTEX_ACQUISITION       "%sThread with ID <0x%lx> cannot acquire mutex at <%p> (%s). Locked previously at: <%s:%lu> by thread with ID: <0x%lx>\r\n"
-
-#endif
 
 #define DBG_MTX_MSG_ERR_MUTEX_TIMEOUT           "Timeout elapsed (%lu s, %lu ns). "
 #define DBG_MTX_MSG_ERR_MUTEX_TIMEOUT_STR_LEN   80
@@ -67,18 +57,6 @@ DBG_MTX* cleanup_var_name __attribute__((cleanup(DbgDestroyMutexAttrCleanup))) =
 DBG_MTX* cleanup_var_name __attribute__((cleanup(DbgDestroyMutexCleanup))) = \
 (DbgMutexInitAddr(p_dbg_mtx))
 
-#ifdef __DBG_MTX_FL__
-
-#define DBG_MTX_LOCK(p_dbg_mtx)                 DbgMutexLock((p_dbg_mtx), __FILE__, __LINE__, 0)
-#define DBG_MTX_TIMED_LOCK(p_dbg_mtx, tout_ns)  DbgMutexLock((p_dbg_mtx), __FILE__, __LINE__, tout_ns)
-
-#define DBG_MTX_LOCK_FN(p_dbg_mtx, cleanup_var_name)\
-DBG_MTX* cleanup_var_name __attribute__((cleanup(DbgReleaseMutexCleanup))) = (DbgMutexLockAddr(p_dbg_mtx, __FILE__, __LINE__, 0))
-#define DBG_MTX_TIMED_LOCK_FN(p_dbg_mtx, tout_ns, cleanup_var_name)\
-DBG_MTX* cleanup_var_name __attribute__((cleanup(DbgReleaseMutexCleanup))) = (DbgMutexLockAddr(p_dbg_mtx, __FILE__, __LINE__, tout_ns))
-
-#else
-
 #define DBG_MTX_LOCK(p_dbg_mtx)                 DbgMutexLock((p_dbg_mtx), TestDbgGetFuncRetAddr(), 0)
 #define DBG_MTX_TIMED_LOCK(p_dbg_mtx, tout_ns)  DbgMutexLock((p_dbg_mtx), TestDbgGetFuncRetAddr(), tout_ns)
 
@@ -88,8 +66,6 @@ DBG_MTX* cleanup_var_name __attribute__((cleanup(DbgReleaseMutexCleanup))) = \
 #define DBG_MTX_TIMED_LOCK_FN(p_dbg_mtx, tout_ns, cleanup_var_name)\
 DBG_MTX* cleanup_var_name __attribute__((cleanup(DbgReleaseMutexCleanup))) = \
 (DbgMutexLockAddr(p_dbg_mtx, TestDbgGetFuncRetAddr(), tout_ns))
-
-#endif
 
 #define DBG_MTX_UNLOCK(p_dbg_mtx)               DbgMutexUnlock(p_dbg_mtx)
 #define DBG_MTX_DESTROY(p_dbg_mtx)              DbgMutexDestroy(p_dbg_mtx)
@@ -101,14 +77,7 @@ DBG_MTX* cleanup_var_name __attribute__((cleanup(DbgReleaseMutexCleanup))) = \
 
 typedef struct /* __attribute__((packed)) */
 {
-    #ifdef __DBG_MTX_FL__
-    char            file_name[DBG_MTX_MAX_FILE_NAME_LEN + 1];
-    unsigned long   line;
-    #elif __DBG_MTX_BT__
-    // Allocate some memory for a full stack backtrace to be stored. Which external library to use is yet to be defined.
-    #else
     void*           address;
-    #endif
     pthread_t       thread_id;
 } DBG_MTX_ACQ_LOCATION;
 
@@ -134,16 +103,11 @@ static int      DbgMutexAttrInit(DBG_MTX* p_debug_mutex, int mutex_type, int pri
 static DBG_MTX* DbgMutexAttrInitAddr(DBG_MTX* p_debug_mutex, int mutex_type, int priority, int proc_sharing);
 static int      DbgMutexInit(DBG_MTX* p_debug_mutex);
 static DBG_MTX* DbgMutexInitAddr(DBG_MTX* p_debug_mutex);
-#ifdef __DBG_MTX_FL__
-static int      DbgMutexLock(DBG_MTX* DBG_MTX, char* file_name, unsigned long line, uint64_t timeout_ns);
-static DBG_MTX* DbgMutexLockAddr(DBG_MTX* p_debug_mutex, char* file_name, unsigned long line, uint64_t timeout_ns);
-#else
 static int      PrintFileAndLineFromAddr(void* addr, char* output_buffer, size_t buffer_size);
 static size_t   GetExecutableBaseddress(void);
 static void*    __attribute__((noinline)) TestDbgGetFuncRetAddr(void);
 static int      DbgMutexLock(DBG_MTX* DBG_MTX, void* address, uint64_t timeout_ns);
 static DBG_MTX* DbgMutexLockAddr(DBG_MTX* p_debug_mutex, void* address, uint64_t timeout_ns);
-#endif
 static int      DbgMutexUnlock(DBG_MTX* p_dbg_mtx);
 static void     DbgReleaseMutexCleanup(void* ptr);
 static int      DbgMutexAttrDestroy(DBG_MTX* p_dbg_mtx);
@@ -191,11 +155,7 @@ static DBG_MTX* DbgMutexInitAddr(DBG_MTX* p_debug_mutex)
     return p_debug_mutex;
 }
 
-#ifdef __DBG_MTX_FL__
-static int DbgMutexLock(DBG_MTX* p_debug_mutex, char* file_name, unsigned long line, uint64_t timeout_ns)
-#else
 static int DbgMutexLock(DBG_MTX* p_debug_mutex, void* address, uint64_t timeout_ns)
-#endif
 {
     if(!p_debug_mutex)
         return -1;
@@ -249,40 +209,22 @@ static int DbgMutexLock(DBG_MTX* p_debug_mutex, void* address, uint64_t timeout_
                 pthread_self()                              ,
                 &p_debug_mutex->mutex                       ,
                 strerror(try_lock)                          ,
-                #ifdef __DBG_MTX_FL__
-                p_debug_mutex->mutex_acq_location.file_name,
-                p_debug_mutex->mutex_acq_location.line     ,
-                #else
                 file_and_line                               ,
-                p_debug_mutex->mutex_acq_location.address  ,
-                #endif
+                p_debug_mutex->mutex_acq_location.address   ,
                 p_debug_mutex->mutex_acq_location.thread_id);
 
         return try_lock;
     }
 
-    #ifdef __DBG_MTX_FL__
-    strncpy(p_debug_mutex->mutex_acq_location.file_name, file_name, DBG_MTX_MAX_FILE_NAME_LEN);
-    p_debug_mutex->mutex_acq_location.line               = line;
-    #else
     p_debug_mutex->mutex_acq_location.address      = address;
-    #endif
     p_debug_mutex->mutex_acq_location.thread_id    = pthread_self();
     
     return try_lock;
 }
 
-#ifdef __DBG_MTX_FL__
-static DBG_MTX* DbgMutexLockAddr(DBG_MTX* p_debug_mutex, char* file_name, unsigned long line, uint64_t timeout_ns)
-#else
 static DBG_MTX* DbgMutexLockAddr(DBG_MTX* p_debug_mutex, void* address, uint64_t timeout_ns)
-#endif
 {
-#ifdef __DBG_MTX_FL__
-    if(DbgMutexLock(p_debug_mutex, file_name, line, timeout_ns))
-#else
     if(DbgMutexLock(p_debug_mutex, address, timeout_ns))
-#endif
         return NULL;
 
     printf("TID: 0x%lx Locked mutex at: %p\r\n", pthread_self(), &p_debug_mutex->mutex);
