@@ -187,13 +187,11 @@ static int DbgMutexLock(DBG_MTX* p_debug_mutex, void* address, uint64_t timeout_
 
     if(try_lock)
     {
-        #ifndef __DBG_MTX_FL__
         char file_and_line[DBG_MTX_MAX_FILE_AND_LINE_LEN + 1] = "";
 
         PrintFileAndLineFromAddr(   p_debug_mutex->mutex_acq_location.address  ,
                                     file_and_line                           ,
                                     DBG_MTX_MAX_FILE_AND_LINE_LEN         );
-        #endif
         
         char timeout_elapsed_str[DBG_MTX_MSG_ERR_MUTEX_TIMEOUT_STR_LEN + 1] = "";
         
@@ -232,7 +230,6 @@ static DBG_MTX* DbgMutexLockAddr(DBG_MTX* p_debug_mutex, void* address, uint64_t
     return p_debug_mutex;
 }
 
-#ifndef __DBG_MTX_FL__
 static size_t GetExecutableBaseddress(void)
 {
     FILE *maps = fopen(DBG_MTX_PROC_MAPS_PATH, "r");
@@ -304,7 +301,6 @@ static __attribute__((noinline)) void* TestDbgGetFuncRetAddr(void)
 {
     return __builtin_return_address(0); 
 }
-#endif
 
 static int DbgMutexUnlock(DBG_MTX* p_dbg_mtx)
 {
