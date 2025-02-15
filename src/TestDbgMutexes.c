@@ -100,7 +100,7 @@ typedef struct /* __attribute__((packed)) */
 
 static void*    TestDbgThreadRoutine(void* arg);
 static int      DbgMutexAttrInit(DBG_MTX* p_debug_mutex, int mutex_type, int priority, int proc_sharing);
-static DBG_MTX* DbgMutexAttrInitAddr(DBG_MTX* p_debug_mutex, int mutex_type, int priority, int proc_sharing);
+static DBG_MTX* __attribute__((unused)) DbgMutexAttrInitAddr(DBG_MTX* p_debug_mutex, int mutex_type, int priority, int proc_sharing);
 static int      DbgMutexInit(DBG_MTX* p_debug_mutex);
 static DBG_MTX* DbgMutexInitAddr(DBG_MTX* p_debug_mutex);
 static int      PrintFileAndLineFromAddr(void* addr, char* output_buffer, size_t buffer_size);
@@ -110,10 +110,10 @@ static int      DbgMutexLock(DBG_MTX* DBG_MTX, void* address, uint64_t timeout_n
 static DBG_MTX* DbgMutexLockAddr(DBG_MTX* p_debug_mutex, void* address, uint64_t timeout_ns);
 static int      DbgMutexUnlock(DBG_MTX* p_dbg_mtx);
 static void     DbgReleaseMutexCleanup(void* ptr);
-static int      DbgMutexAttrDestroy(DBG_MTX* p_dbg_mtx);
-static void     DbgDestroyMutexAttrCleanup(void* ptr);
+static int      __attribute__((unused)) DbgMutexAttrDestroy(DBG_MTX* p_dbg_mtx);
+static void     __attribute__((unused)) DbgDestroyMutexAttrCleanup(void* ptr);
 static int      DbgMutexDestroy(DBG_MTX* p_dbg_mtx);
-static void     DbgDestroyMutexCleanup(void* ptr);
+static void     __attribute__((unused)) DbgDestroyMutexCleanup(void* ptr);
 
 /*****************************************/
 
