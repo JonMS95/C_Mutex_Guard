@@ -242,7 +242,7 @@ static void DbgMutexPrintLockError( DBG_MTX_ACQ_LOCATION* p_debug_mutex_acq_loca
                                     uint64_t timeout_ns                             ,
                                     int try_lock                                    )
 {
-    char lock_error_string[DBG_MTX_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN] = "";
+    char lock_error_string[DBG_MTX_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN] = {0};
 
     strncat((lock_error_string + strlen(lock_error_string))                     ,
             DBG_MTX_MSG_ERR_MUTEX_HEADER                                        ,
@@ -259,14 +259,19 @@ static void DbgMutexPrintLockError( DBG_MTX_ACQ_LOCATION* p_debug_mutex_acq_loca
 }
 
 #ifdef __DBG_MTX_FULL_BT__
-static __attribute__((always_inline)) void DbgMutexShowBacktrace(void)
+static void DbgMutexShowBacktrace(void)
 {
     void* call_stack[__DBG_MTX_FULL_BT_MAX_SIZE__] = {0};
     int call_stack_size = backtrace(call_stack, __DBG_MTX_FULL_BT_MAX_SIZE__);
     char** call_stack_symbols = backtrace_symbols(call_stack, call_stack_size);
 
-    if(call_stack_symbols)
-        for(unsigned int call_stack_index = 0; call_stack_index < call_stack_size; call_stack_index++)
+    // Revise the code below. would it be reasonable?
+    // char lock_error_string[DBG_MTX_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN] = {0};
+    // PrintFileAndLineFromAddr(?)
+    // End comment.
+
+    if(call_stack_symbols && call_stack_symbols[1])
+        for(unsigned int call_stack_index = 1; call_stack_index < call_stack_size; call_stack_index++)
             printf("%s\r\n", call_stack_symbols[call_stack_index]);
 }
 #endif
