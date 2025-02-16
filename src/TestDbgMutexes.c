@@ -8,6 +8,9 @@
 #include <string.h>
 #include <time.h>
 #include <limits.h>
+#ifdef __DBG_MTX_FULL_BT__
+#include <execinfo.h>
+#endif
 
 /*****************************************/
 
@@ -15,6 +18,16 @@
 
 #ifndef __DBG_MTX_TOUT_SECS__
 #define __DBG_MTX_TOUT_SECS__   1
+#endif
+
+#ifndef __DBG_MTX_ADDR_NUM__
+#define __DBG_MTX_ADDR_NUM__    10
+#endif
+
+#ifdef  __DBG_MTX_FULL_BT__
+#ifndef __DBG_MTX_FULL_BT_MAX_SIZE__
+#define __DBG_MTX_FULL_BT_MAX_SIZE__    100
+#endif
 #endif
 
 #define DBG_MTX_MAX_FILE_NAME_LEN   (uint8_t)100
@@ -35,12 +48,14 @@
 #define DBG_MTX_ADDR2LINE_CMD_FORMAT_MAX_LEN    DBG_MTX_ADDR2LINE_CMD_FORMAT_LEN + PATH_MAX
 #define DBG_MTX_MSG_ERR_ADDR2LINE               "Could not execute addr2line command."
 #define DBG_MTX_FN_PATH_LINE_DELIMITER          ":"
-#define DBG_MTX_FN_PATH_HALF_DELIMITER          "%s defined at "
+#define DBG_MTX_FN_PATH_HALF_DELIMITER          "#%u %p (+%p): %s defined at "
 
-#define DBG_MTX_MSG_ERR_MUTEX_ACQUISITION       "%sThread with ID <0x%lx> cannot acquire mutex at <%p> (%s). Locked previously at: <%s (%p)> by thread with ID: <0x%lx>\r\n"
-
+#define DBG_MTX_MSG_ERR_MUTEX_HEADER            "*********************************\r\n"
 #define DBG_MTX_MSG_ERR_MUTEX_TIMEOUT           "Timeout elapsed (%lu s, %lu ns). "
-#define DBG_MTX_MSG_ERR_MUTEX_TIMEOUT_STR_LEN   80
+#define DBG_MTX_MSG_ERR_MUTEX_ACQUISITION       "Thread with ID <0x%lx> cannot acquire mutex at <%p> (%s).\r\nLocked previously by thread with ID: <0x%lx> at the following address(es):\r\n"
+#define DBG_MTX_MSG_ERR_MUTEX_FOOTER            "---------------------------------\r\n"
+
+#define DBG_MTX_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN  1024
 
 /**************** Macros *****************/
 
@@ -77,7 +92,7 @@ DBG_MTX* cleanup_var_name __attribute__((cleanup(DbgReleaseMutexCleanup))) = \
 
 typedef struct /* __attribute__((packed)) */
 {
-    void*           address;
+    void*           addresses[__DBG_MTX_ADDR_NUM__];
     pthread_t       thread_id;
 } DBG_MTX_ACQ_LOCATION;
 
@@ -103,7 +118,8 @@ static int      DbgMutexAttrInit(DBG_MTX* p_debug_mutex, int mutex_type, int pri
 static DBG_MTX* __attribute__((unused)) DbgMutexAttrInitAddr(DBG_MTX* p_debug_mutex, int mutex_type, int priority, int proc_sharing);
 static int      DbgMutexInit(DBG_MTX* p_debug_mutex);
 static DBG_MTX* DbgMutexInitAddr(DBG_MTX* p_debug_mutex);
-static int      PrintFileAndLineFromAddr(void* addr, char* output_buffer, size_t buffer_size);
+static int      DbgMutexStoreNewAddress(DBG_MTX* p_debug_mutex, void* address);
+static int      PrintFileAndLineFromAddr(void* addr, char* output_buffer, unsigned int address_index);
 static size_t   GetExecutableBaseddress(void);
 static void*    __attribute__((noinline)) TestDbgGetFuncRetAddr(void);
 static int      DbgMutexLock(DBG_MTX* DBG_MTX, void* address, uint64_t timeout_ns);
@@ -155,6 +171,106 @@ static DBG_MTX* DbgMutexInitAddr(DBG_MTX* p_debug_mutex)
     return p_debug_mutex;
 }
 
+static int DbgMutexStoreNewAddress(DBG_MTX* p_debug_mutex, void* address)
+{
+    for(int address_index = 0; address_index < sizeof(p_debug_mutex->mutex_acq_location.addresses); address_index++)
+    {
+        if(!p_debug_mutex->mutex_acq_location.addresses[address_index])
+            p_debug_mutex->mutex_acq_location.addresses[address_index] = address;
+        return 0;
+    }
+    
+    return -1;
+}
+
+static struct timespec DbgMutexGenTimespec(uint64_t timeout_ns)
+{
+    struct timespec lock_timeout;
+    clock_gettime(CLOCK_REALTIME, &lock_timeout);
+    
+    // Add the timeout (in nanoseconds) to the current time
+    lock_timeout.tv_sec += timeout_ns / DBG_MTX_TOUT_1_SEC_AS_NS;
+    lock_timeout.tv_nsec += timeout_ns % DBG_MTX_TOUT_1_SEC_AS_NS;
+    
+    // Handle possible overflow in nanoseconds (if it's >= 1 second)
+    if (lock_timeout.tv_nsec >= DBG_MTX_TOUT_1_SEC_AS_NS)
+    {
+        lock_timeout.tv_nsec -= DBG_MTX_TOUT_1_SEC_AS_NS;
+        lock_timeout.tv_sec += 1;
+    }
+
+    return lock_timeout;
+}
+
+static void DbgMutexPrintLockTimeout(   DBG_MTX_ACQ_LOCATION* p_debug_mutex_acq_location,
+                                        pthread_mutex_t* mutex_address                  ,
+                                        uint64_t timeout_ns                             ,
+                                        int try_lock                                    ,
+                                        char* lock_error_string                         )
+{
+    if(timeout_ns)
+        snprintf(   lock_error_string + strlen(lock_error_string)                       ,
+                    (DBG_MTX_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(lock_error_string)),
+                    DBG_MTX_MSG_ERR_MUTEX_TIMEOUT                                       ,
+                    timeout_ns / DBG_MTX_TOUT_1_SEC_AS_NS                               ,
+                    timeout_ns % DBG_MTX_TOUT_1_SEC_AS_NS                               );
+
+    snprintf(   lock_error_string + strlen(lock_error_string)                       ,
+                (DBG_MTX_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(lock_error_string)),
+                DBG_MTX_MSG_ERR_MUTEX_ACQUISITION                                   ,
+                pthread_self()                                                      ,
+                mutex_address                                                       ,
+                strerror(try_lock)                                                  ,
+                p_debug_mutex_acq_location->thread_id                               );
+}
+
+static void DbgMutexPrintLockAddresses(DBG_MTX_ACQ_LOCATION* p_debug_mutex_acq_location, char* lock_error_string)
+{
+    for(unsigned int adress_index = 0; adress_index < sizeof(p_debug_mutex_acq_location->addresses); adress_index++)
+    {
+        if(!p_debug_mutex_acq_location->addresses[adress_index])
+            return;
+        
+        PrintFileAndLineFromAddr(   p_debug_mutex_acq_location->addresses[adress_index]   ,
+                                    lock_error_string                                           ,
+                                    adress_index                                                );
+    }
+}
+
+static void DbgMutexPrintLockError( DBG_MTX_ACQ_LOCATION* p_debug_mutex_acq_location,
+                                    pthread_mutex_t* target_mutex_addr              ,
+                                    uint64_t timeout_ns                             ,
+                                    int try_lock                                    )
+{
+    char lock_error_string[DBG_MTX_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN] = "";
+
+    strncat((lock_error_string + strlen(lock_error_string))                     ,
+            DBG_MTX_MSG_ERR_MUTEX_HEADER                                        ,
+            (DBG_MTX_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(lock_error_string)));
+
+    DbgMutexPrintLockTimeout(p_debug_mutex_acq_location, target_mutex_addr, timeout_ns, try_lock, lock_error_string + strlen(lock_error_string));
+    DbgMutexPrintLockAddresses(p_debug_mutex_acq_location, lock_error_string + strlen(lock_error_string));
+
+    strncat((lock_error_string + strlen(lock_error_string))                     ,
+            DBG_MTX_MSG_ERR_MUTEX_FOOTER                                        ,
+            (DBG_MTX_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(lock_error_string)));
+
+    printf("%s", lock_error_string);
+}
+
+#ifdef __DBG_MTX_FULL_BT__
+static __attribute__((always_inline)) void DbgMutexShowBacktrace(void)
+{
+    void* call_stack[__DBG_MTX_FULL_BT_MAX_SIZE__] = {0};
+    int call_stack_size = backtrace(call_stack, __DBG_MTX_FULL_BT_MAX_SIZE__);
+    char** call_stack_symbols = backtrace_symbols(call_stack, call_stack_size);
+
+    if(call_stack_symbols)
+        for(unsigned int call_stack_index = 0; call_stack_index < call_stack_size; call_stack_index++)
+            printf("%s\r\n", call_stack_symbols[call_stack_index]);
+}
+#endif
+
 static int DbgMutexLock(DBG_MTX* p_debug_mutex, void* address, uint64_t timeout_ns)
 {
     if(!p_debug_mutex)
@@ -168,55 +284,28 @@ static int DbgMutexLock(DBG_MTX* p_debug_mutex, void* address, uint64_t timeout_
     }
     else
     {
-        struct timespec lock_timeout;
-        clock_gettime(CLOCK_REALTIME, &lock_timeout);
-        
-        // Add the timeout (in nanoseconds) to the current time
-        lock_timeout.tv_sec += timeout_ns / DBG_MTX_TOUT_1_SEC_AS_NS;
-        lock_timeout.tv_nsec += timeout_ns % DBG_MTX_TOUT_1_SEC_AS_NS;
-        
-        // Handle possible overflow in nanoseconds (if it's >= 1 second)
-        if (lock_timeout.tv_nsec >= DBG_MTX_TOUT_1_SEC_AS_NS)
-        {
-            lock_timeout.tv_nsec -= DBG_MTX_TOUT_1_SEC_AS_NS;
-            lock_timeout.tv_sec += 1;
-        }
-
-        try_lock = pthread_mutex_timedlock(&p_debug_mutex->mutex, &lock_timeout);
+        struct timespec timed_lock_timeout = DbgMutexGenTimespec(timeout_ns);
+        try_lock = pthread_mutex_timedlock(&p_debug_mutex->mutex, &timed_lock_timeout);
     }
 
     if(try_lock)
     {
-        char file_and_line[DBG_MTX_MAX_FILE_AND_LINE_LEN + 1] = "";
-
-        PrintFileAndLineFromAddr(   p_debug_mutex->mutex_acq_location.address  ,
-                                    file_and_line                           ,
-                                    DBG_MTX_MAX_FILE_AND_LINE_LEN         );
+        DBG_MTX_ACQ_LOCATION info_acq_location  = p_debug_mutex->mutex_acq_location;
+        pthread_mutex_t* target_mutex_addr      = &p_debug_mutex->mutex;
         
-        char timeout_elapsed_str[DBG_MTX_MSG_ERR_MUTEX_TIMEOUT_STR_LEN + 1] = "";
-        
-        if(timeout_ns)
-            snprintf(   timeout_elapsed_str                     ,
-                        DBG_MTX_MSG_ERR_MUTEX_TIMEOUT_STR_LEN   ,
-                        DBG_MTX_MSG_ERR_MUTEX_TIMEOUT           ,
-                        timeout_ns / DBG_MTX_TOUT_1_SEC_AS_NS   ,
-                        timeout_ns % DBG_MTX_TOUT_1_SEC_AS_NS   );
-
-        printf( DBG_MTX_MSG_ERR_MUTEX_ACQUISITION           ,
-                timeout_elapsed_str                         ,
-                pthread_self()                              ,
-                &p_debug_mutex->mutex                       ,
-                strerror(try_lock)                          ,
-                file_and_line                               ,
-                p_debug_mutex->mutex_acq_location.address   ,
-                p_debug_mutex->mutex_acq_location.thread_id);
+        DbgMutexPrintLockError(&info_acq_location, target_mutex_addr, timeout_ns, try_lock);
 
         return try_lock;
     }
 
-    p_debug_mutex->mutex_acq_location.address      = address;
-    p_debug_mutex->mutex_acq_location.thread_id    = pthread_self();
+    int __attribute__((unused)) store_addr = DbgMutexStoreNewAddress(p_debug_mutex, address);
+
+    p_debug_mutex->mutex_acq_location.thread_id = pthread_self();
     
+    #ifdef __DBG_MTX_FULL_BT__
+    DbgMutexShowBacktrace();
+    #endif
+
     return try_lock;
 }
 
@@ -257,7 +346,7 @@ static size_t GetExecutableBaseddress(void)
     return start;
 }
 
-static int PrintFileAndLineFromAddr(void* addr, char* output_buffer, size_t buffer_size)
+static int PrintFileAndLineFromAddr(void* addr, char* output_buffer, unsigned int address_index)
 {
     char cmd[DBG_MTX_ADDR2LINE_CMD_FORMAT_MAX_LEN + 1] = "";
     char full_path[PATH_MAX + 1] = "";
@@ -265,11 +354,13 @@ static int PrintFileAndLineFromAddr(void* addr, char* output_buffer, size_t buff
     if(readlink(DBG_MTX_CURRENT_PROC_PATH, full_path, sizeof(full_path) - 1) < 0)
         return -1;
 
-    snprintf(   cmd                                                 ,
-                DBG_MTX_ADDR2LINE_CMD_FORMAT_MAX_LEN                ,
-                DBG_MTX_ADDR2LINE_CMD_FORMAT                        ,
-                full_path                                           ,
-                (void*)((size_t)addr - GetExecutableBaseddress())   );
+    void* relative_address = (void*)((size_t)addr - GetExecutableBaseddress());
+
+    snprintf(   cmd                                 ,
+                DBG_MTX_ADDR2LINE_CMD_FORMAT_MAX_LEN,
+                DBG_MTX_ADDR2LINE_CMD_FORMAT        ,
+                full_path                           ,
+                relative_address                    );
 
     FILE *fp = popen(cmd, "r");
     
@@ -280,7 +371,6 @@ static int PrintFileAndLineFromAddr(void* addr, char* output_buffer, size_t buff
     }
 
     char line[PATH_MAX + 1] = "";
-    output_buffer[0] = '\0'; // Clear the buffer initially
     
     while (fgets(line, sizeof(line), fp) != NULL)
     {
@@ -288,10 +378,22 @@ static int PrintFileAndLineFromAddr(void* addr, char* output_buffer, size_t buff
         
         char* at_pos = strstr(line, DBG_MTX_FN_PATH_LINE_DELIMITER);
         if(!at_pos)
-            snprintf(output_buffer, buffer_size, DBG_MTX_FN_PATH_HALF_DELIMITER, line);
+            snprintf(   output_buffer + strlen(output_buffer)                           ,
+                        (DBG_MTX_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(output_buffer)),
+                        DBG_MTX_FN_PATH_HALF_DELIMITER                                  ,
+                        address_index                                                   ,
+                        addr                                                            ,
+                        relative_address                                                ,
+                        line                                                            );
         else
-            strncat(output_buffer, line, buffer_size - strlen(output_buffer) - 1);
+            strncat(output_buffer + strlen(output_buffer)                               ,
+                    line                                                                ,
+                    (DBG_MTX_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(output_buffer))    );
     }
+
+    strncat(output_buffer + strlen(output_buffer)                               ,
+            "\r\n"                                                              ,
+            (DBG_MTX_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(output_buffer))    );
 
     pclose(fp);
     return 0;
@@ -322,7 +424,7 @@ static void DbgReleaseMutexCleanup(void* ptr)
     DbgMutexUnlock(*(DBG_MTX**)ptr);
 }
 
-static __attribute__((unused)) int DbgMutexAttrDestroy(DBG_MTX* p_dbg_mtx)
+static inline __attribute__((unused)) int DbgMutexAttrDestroy(DBG_MTX* p_dbg_mtx)
 {
     return pthread_mutexattr_destroy(&p_dbg_mtx->mutex_attr);
 }
@@ -337,7 +439,7 @@ static __attribute__((unused)) void DbgDestroyMutexAttrCleanup(void* ptr)
     DbgMutexAttrDestroy(*(DBG_MTX**)ptr);
 }
 
-static int DbgMutexDestroy(DBG_MTX* p_dbg_mtx)
+static inline int DbgMutexDestroy(DBG_MTX* p_dbg_mtx)
 {
     return pthread_mutex_destroy(&p_dbg_mtx->mutex);
 }
@@ -373,6 +475,7 @@ static void* TestDbgThreadRoutine(void* arg)
 void TestDbgMutexes(void)
 {
     pthread_t t_0, t_1;
+    // pthread_t t_0;
 
     DBG_MTX_CREATE(debug_mutex_0);
     DBG_MTX_CREATE(debug_mutex_1);
