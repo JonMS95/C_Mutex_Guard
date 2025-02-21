@@ -113,23 +113,23 @@ typedef struct /* __attribute__((packed)) */
 
 /****** Private function prototypes ******/
 
-static void*    TestDbgThreadRoutine(void* arg);
-static int      DbgMutexAttrInit(DBG_MTX* p_debug_mutex, int mutex_type, int priority, int proc_sharing);
-static DBG_MTX* __attribute__((unused)) DbgMutexAttrInitAddr(DBG_MTX* p_debug_mutex, int mutex_type, int priority, int proc_sharing);
-static int      DbgMutexInit(DBG_MTX* p_debug_mutex);
-static DBG_MTX* DbgMutexInitAddr(DBG_MTX* p_debug_mutex);
-static int      DbgMutexStoreNewAddress(DBG_MTX* p_debug_mutex, void* address);
-static int      PrintFileAndLineFromAddr(void* addr, char* output_buffer, unsigned int address_index);
-static size_t   GetExecutableBaseddress(void);
-static void*    __attribute__((noinline)) TestDbgGetFuncRetAddr(void);
-static int      DbgMutexLock(DBG_MTX* DBG_MTX, void* address, uint64_t timeout_ns);
-static DBG_MTX* DbgMutexLockAddr(DBG_MTX* p_debug_mutex, void* address, uint64_t timeout_ns);
-static int      DbgMutexUnlock(DBG_MTX* p_dbg_mtx);
-static void     DbgReleaseMutexCleanup(void* ptr);
-static int      __attribute__((unused)) DbgMutexAttrDestroy(DBG_MTX* p_dbg_mtx);
-static void     __attribute__((unused)) DbgDestroyMutexAttrCleanup(void* ptr);
-static int      DbgMutexDestroy(DBG_MTX* p_dbg_mtx);
-static void     __attribute__((unused)) DbgDestroyMutexCleanup(void* ptr);
+static          void*    TestDbgThreadRoutine(void* arg);
+static          int      DbgMutexAttrInit(DBG_MTX* p_debug_mutex, int mutex_type, int priority, int proc_sharing);
+static inline   DBG_MTX* __attribute__((unused)) DbgMutexAttrInitAddr(DBG_MTX* p_debug_mutex, int mutex_type, int priority, int proc_sharing);
+static inline   int      DbgMutexInit(DBG_MTX* p_debug_mutex);
+static inline   DBG_MTX* DbgMutexInitAddr(DBG_MTX* p_debug_mutex);
+static          int      DbgMutexStoreNewAddress(DBG_MTX* p_debug_mutex, void* address);
+static          int      PrintFileAndLineFromAddr(void* addr, char* output_buffer, unsigned int address_index);
+static          size_t   GetExecutableBaseddress(void);
+static          void*    __attribute__((noinline)) TestDbgGetFuncRetAddr(void);
+static          int      DbgMutexLock(DBG_MTX* DBG_MTX, void* address, uint64_t timeout_ns);
+static inline   DBG_MTX* DbgMutexLockAddr(DBG_MTX* p_debug_mutex, void* address, uint64_t timeout_ns);
+static          int      DbgMutexUnlock(DBG_MTX* p_dbg_mtx);
+static          void     DbgReleaseMutexCleanup(void* ptr);
+static          int      __attribute__((unused)) DbgMutexAttrDestroy(DBG_MTX* p_dbg_mtx);
+static          void     __attribute__((unused)) DbgDestroyMutexAttrCleanup(void* ptr);
+static inline   int      DbgMutexDestroy(DBG_MTX* p_dbg_mtx);
+static          void     __attribute__((unused)) DbgDestroyMutexCleanup(void* ptr);
 
 /*****************************************/
 
@@ -147,28 +147,34 @@ static int DbgMutexAttrInit(DBG_MTX* p_debug_mutex, int mutex_type, int priority
     return (set_type | set_priority | set_proc_share);
 }
 
-static __attribute__((unused)) DBG_MTX* DbgMutexAttrInitAddr(DBG_MTX* p_debug_mutex, int mutex_type, int priority, int proc_sharing)
+static inline __attribute__((unused)) DBG_MTX* DbgMutexAttrInitAddr(DBG_MTX* p_debug_mutex, int mutex_type, int priority, int proc_sharing)
 {
-    if(DbgMutexAttrInit(p_debug_mutex, mutex_type, priority, proc_sharing))
-        return NULL;
+    // if(DbgMutexAttrInit(p_debug_mutex, mutex_type, priority, proc_sharing))
+    //     return NULL;
 
-    return p_debug_mutex;
+    // return p_debug_mutex;
+
+    return (DbgMutexAttrInit(p_debug_mutex, mutex_type, priority, proc_sharing) ? NULL : p_debug_mutex);
 }
 
-static int DbgMutexInit(DBG_MTX* p_debug_mutex)
+static inline int DbgMutexInit(DBG_MTX* p_debug_mutex)
 {
-    if(!p_debug_mutex)
-        return -1;
+    // if(!p_debug_mutex)
+    //     return -1;
     
-    return pthread_mutex_init(&p_debug_mutex->mutex, &p_debug_mutex->mutex_attr);
+    // return pthread_mutex_init(&p_debug_mutex->mutex, &p_debug_mutex->mutex_attr);
+
+    return (p_debug_mutex ? pthread_mutex_init(&p_debug_mutex->mutex, &p_debug_mutex->mutex_attr) : -1);
 }
 
-static DBG_MTX* DbgMutexInitAddr(DBG_MTX* p_debug_mutex)
+static inline DBG_MTX* DbgMutexInitAddr(DBG_MTX* p_debug_mutex)
 {
-    if(DbgMutexInit(p_debug_mutex))
-        return NULL;
+    // if(DbgMutexInit(p_debug_mutex))
+    //     return NULL;
 
-    return p_debug_mutex;
+    // return p_debug_mutex;
+
+    return (DbgMutexInit(p_debug_mutex) ? NULL : p_debug_mutex);
 }
 
 static int DbgMutexStoreNewAddress(DBG_MTX* p_debug_mutex, void* address)
@@ -231,9 +237,9 @@ static void DbgMutexPrintLockAddresses(DBG_MTX_ACQ_LOCATION* p_debug_mutex_acq_l
         if(!p_debug_mutex_acq_location->addresses[adress_index])
             return;
         
-        PrintFileAndLineFromAddr(   p_debug_mutex_acq_location->addresses[adress_index]   ,
-                                    lock_error_string                                           ,
-                                    adress_index                                                );
+        PrintFileAndLineFromAddr(   p_debug_mutex_acq_location->addresses[adress_index] ,
+                                    lock_error_string                                   ,
+                                    adress_index                                        );
     }
 }
 
@@ -314,14 +320,16 @@ static int DbgMutexLock(DBG_MTX* p_debug_mutex, void* address, uint64_t timeout_
     return try_lock;
 }
 
-static DBG_MTX* DbgMutexLockAddr(DBG_MTX* p_debug_mutex, void* address, uint64_t timeout_ns)
+static inline DBG_MTX* DbgMutexLockAddr(DBG_MTX* p_debug_mutex, void* address, uint64_t timeout_ns)
 {
-    if(DbgMutexLock(p_debug_mutex, address, timeout_ns))
-        return NULL;
+    // if(DbgMutexLock(p_debug_mutex, address, timeout_ns))
+    //     return NULL;
 
-    printf("TID: 0x%lx Locked mutex at: %p\r\n", pthread_self(), &p_debug_mutex->mutex);
+    // printf("TID: 0x%lx Locked mutex at: %p\r\n", pthread_self(), &p_debug_mutex->mutex);
 
-    return p_debug_mutex;
+    // return p_debug_mutex;
+
+    return (DbgMutexLock(p_debug_mutex, address, timeout_ns) ? NULL : p_debug_mutex);
 }
 
 static size_t GetExecutableBaseddress(void)
@@ -396,11 +404,12 @@ static int PrintFileAndLineFromAddr(void* addr, char* output_buffer, unsigned in
                     (DBG_MTX_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(output_buffer))    );
     }
 
+    pclose(fp);
+
     strncat(output_buffer + strlen(output_buffer)                               ,
             "\r\n"                                                              ,
             (DBG_MTX_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(output_buffer))    );
 
-    pclose(fp);
     return 0;
 }
 
@@ -480,7 +489,6 @@ static void* TestDbgThreadRoutine(void* arg)
 void TestDbgMutexes(void)
 {
     pthread_t t_0, t_1;
-    // pthread_t t_0;
 
     DBG_MTX_CREATE(debug_mutex_0);
     DBG_MTX_CREATE(debug_mutex_1);
