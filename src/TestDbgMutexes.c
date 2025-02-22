@@ -602,7 +602,6 @@ static __attribute__((unused)) void DbgDestroyMutexAttrCleanup(void* ptr)
 
 static inline int DbgMutexDestroy(DBG_MTX* p_dbg_mtx)
 {
-    // printf("%s Destroying mutex attt: %p\r\n", (p_dbg_mtx == &acq_info_lock ? "YES" : "NO"), &p_dbg_mtx->mutex);
     return pthread_mutex_destroy(&p_dbg_mtx->mutex);
 }
 
@@ -610,8 +609,6 @@ static __attribute__((unused)) void DbgDestroyMutexCleanup(void* ptr)
 {
     if(!ptr)
         return;
-    
-    // printf("Destroying mutex at: %p\r\n", &(*(DBG_MTX**)ptr)->mutex);
 
     DbgMutexDestroy(*(DBG_MTX**)ptr);
 }
@@ -637,7 +634,6 @@ static void* TestDbgThreadRoutine(void* arg)
 void TestDbgMutexes(void)
 {
     pthread_t t_0, t_1;
-    // pthread_t t_0;
 
     DBG_MTX_CREATE(debug_mutex_0);
     DBG_MTX_CREATE(debug_mutex_1);
@@ -674,8 +670,6 @@ void TestDbgMutexes(void)
 
     pthread_join(t_0, NULL);
     pthread_join(t_1, NULL);
-
-    printf("Ending test ...\r\n");
 }
 
 /*****************************************/
