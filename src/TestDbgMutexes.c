@@ -162,31 +162,16 @@ static int DbgMutexAttrInit(DBG_MTX* p_debug_mutex, int mutex_type, int priority
 
 static inline __attribute__((unused)) DBG_MTX* DbgMutexAttrInitAddr(DBG_MTX* p_debug_mutex, int mutex_type, int priority, int proc_sharing)
 {
-    // if(DbgMutexAttrInit(p_debug_mutex, mutex_type, priority, proc_sharing))
-    //     return NULL;
-
-    // return p_debug_mutex;
-
     return (DbgMutexAttrInit(p_debug_mutex, mutex_type, priority, proc_sharing) ? NULL : p_debug_mutex);
 }
 
 static inline int DbgMutexInit(DBG_MTX* p_debug_mutex)
 {
-    // if(!p_debug_mutex)
-    //     return -1;
-    
-    // return pthread_mutex_init(&p_debug_mutex->mutex, &p_debug_mutex->mutex_attr);
-
     return (p_debug_mutex ? pthread_mutex_init(&p_debug_mutex->mutex, &p_debug_mutex->mutex_attr) : -1);
 }
 
 static inline DBG_MTX* DbgMutexInitAddr(DBG_MTX* p_debug_mutex)
 {
-    // if(DbgMutexInit(p_debug_mutex))
-    //     return NULL;
-
-    // return p_debug_mutex;
-
     return (DbgMutexInit(p_debug_mutex) ? NULL : p_debug_mutex);
 }
 
@@ -343,13 +328,6 @@ static int DbgMutexLock(DBG_MTX* p_debug_mutex, void* address, uint64_t timeout_
 
 static inline DBG_MTX* DbgMutexLockAddr(DBG_MTX* p_debug_mutex, void* address, uint64_t timeout_ns)
 {
-    // if(DbgMutexLock(p_debug_mutex, address, timeout_ns))
-    //     return NULL;
-
-    // printf("TID: 0x%lx Locked mutex at: %p\r\n", pthread_self(), &p_debug_mutex->mutex);
-
-    // return p_debug_mutex;
-
     return (DbgMutexLock(p_debug_mutex, address, timeout_ns) ? NULL : p_debug_mutex);
 }
 
