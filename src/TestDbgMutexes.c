@@ -48,12 +48,17 @@
 #define DBG_MTX_ADDR2LINE_CMD_FORMAT_MAX_LEN    DBG_MTX_ADDR2LINE_CMD_FORMAT_LEN + PATH_MAX
 #define DBG_MTX_MSG_ERR_ADDR2LINE               "Could not execute addr2line command."
 #define DBG_MTX_FN_PATH_LINE_DELIMITER          ":"
+#define DBG_MTX_FN_LINE_DELIMITER               ':'
 #define DBG_MTX_FN_PATH_HALF_DELIMITER          "#%u %p (+%p): %s defined at "
+
+#define DBG_MTX_ACQ_LOCATION_FULL_FORMAT        "#%u %p (+%p): %s defined at %s:%lu\r\n"
 
 #define DBG_MTX_MSG_ERR_MUTEX_HEADER            "*********************************\r\n"
 #define DBG_MTX_MSG_ERR_MUTEX_TIMEOUT           "Timeout elapsed (%lu s, %lu ns). "
 #define DBG_MTX_MSG_ERR_MUTEX_ACQUISITION       "Thread with ID <0x%lx> cannot acquire mutex at <%p> (%s).\r\nLocked previously by thread with ID: <0x%lx> at the following address(es):\r\n"
 #define DBG_MTX_MSG_ERR_MUTEX_FOOTER            "---------------------------------\r\n"
+
+#define DBG_MTX_ACQ_FN_NAME_LEN 100
 
 #define DBG_MTX_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN  1024
 
@@ -90,24 +95,32 @@ DBG_MTX* cleanup_var_name __attribute__((cleanup(DbgReleaseMutexCleanup))) = \
 
 /******* Private type definitions ********/
 
-typedef struct /* __attribute__((packed)) */
+typedef struct
 {
     void*           addresses[__DBG_MTX_ADDR_NUM__];
     pthread_t       thread_id;
 } DBG_MTX_ACQ_LOCATION;
 
-typedef struct /* __attribute__((packed)) */
+typedef struct
 {
     pthread_mutex_t         mutex;
     pthread_mutexattr_t     mutex_attr;
     DBG_MTX_ACQ_LOCATION    mutex_acq_location;
 } DBG_MTX;
 
-typedef struct /* __attribute__((packed)) */
+typedef struct
 {
     DBG_MTX* p_dbg_mtx_first;
     DBG_MTX* p_dbg_mtx_second;
 } DBG_MTX_TEST_PAIR;
+
+typedef struct
+{
+    void*           relative_address;
+    char            function_name[DBG_MTX_ACQ_FN_NAME_LEN + 1];
+    unsigned long   line;
+    char            file_path[PATH_MAX + 1];
+} DBG_MTX_ACQ_LOCATION_DETAIL;
 
 /*****************************************/
 
@@ -119,7 +132,7 @@ static inline   DBG_MTX* __attribute__((unused)) DbgMutexAttrInitAddr(DBG_MTX* p
 static inline   int      DbgMutexInit(DBG_MTX* p_debug_mutex);
 static inline   DBG_MTX* DbgMutexInitAddr(DBG_MTX* p_debug_mutex);
 static          int      DbgMutexStoreNewAddress(DBG_MTX* p_debug_mutex, void* address);
-static          int      PrintFileAndLineFromAddr(void* addr, char* output_buffer, unsigned int address_index);
+static          int      PrintFileAndLineFromAddr(void* addr, char* output_buffer, unsigned int address_index, DBG_MTX_ACQ_LOCATION_DETAIL* detail);
 static          size_t   GetExecutableBaseddress(void);
 static          void*    __attribute__((noinline)) TestDbgGetFuncRetAddr(void);
 static          int      DbgMutexLock(DBG_MTX* DBG_MTX, void* address, uint64_t timeout_ns);
@@ -214,7 +227,7 @@ static void DbgMutexPrintLockTimeout(   DBG_MTX_ACQ_LOCATION* p_debug_mutex_acq_
                                         int try_lock                                    ,
                                         char* lock_error_string                         )
 {
-    if(timeout_ns)
+    if(timeout_ns > 0)
         snprintf(   lock_error_string + strlen(lock_error_string)                       ,
                     (DBG_MTX_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(lock_error_string)),
                     DBG_MTX_MSG_ERR_MUTEX_TIMEOUT                                       ,
@@ -232,6 +245,8 @@ static void DbgMutexPrintLockTimeout(   DBG_MTX_ACQ_LOCATION* p_debug_mutex_acq_
 
 static void DbgMutexPrintLockAddresses(DBG_MTX_ACQ_LOCATION* p_debug_mutex_acq_location, char* lock_error_string)
 {
+    DBG_MTX_ACQ_LOCATION_DETAIL detail = {0};
+
     for(unsigned int adress_index = 0; adress_index < sizeof(p_debug_mutex_acq_location->addresses); adress_index++)
     {
         if(!p_debug_mutex_acq_location->addresses[adress_index])
@@ -239,7 +254,13 @@ static void DbgMutexPrintLockAddresses(DBG_MTX_ACQ_LOCATION* p_debug_mutex_acq_l
         
         PrintFileAndLineFromAddr(   p_debug_mutex_acq_location->addresses[adress_index] ,
                                     lock_error_string                                   ,
-                                    adress_index                                        );
+                                    adress_index                                        ,
+                                    &detail                                             );
+        
+        memset(detail.function_name, 0, strlen(detail.function_name));
+        memset(detail.file_path, 0, strlen(detail.file_path));
+        detail.line = 0;
+        detail.relative_address = NULL;
     }
 }
 
@@ -359,21 +380,22 @@ static size_t GetExecutableBaseddress(void)
     return start;
 }
 
-static int PrintFileAndLineFromAddr(void* addr, char* output_buffer, unsigned int address_index)
+static int __attribute__((unused)) DbgMutexGetLockDetailFromAddr(void* addr, DBG_MTX_ACQ_LOCATION_DETAIL* detail)
 {
     char cmd[DBG_MTX_ADDR2LINE_CMD_FORMAT_MAX_LEN + 1] = "";
     char full_path[PATH_MAX + 1] = "";
     
     if(readlink(DBG_MTX_CURRENT_PROC_PATH, full_path, sizeof(full_path) - 1) < 0)
         return -1;
-
-    void* relative_address = (void*)((size_t)addr - GetExecutableBaseddress());
+    
+    if(!detail->relative_address)
+        detail->relative_address = (void*)((size_t)addr - GetExecutableBaseddress());
 
     snprintf(   cmd                                 ,
                 DBG_MTX_ADDR2LINE_CMD_FORMAT_MAX_LEN,
                 DBG_MTX_ADDR2LINE_CMD_FORMAT        ,
                 full_path                           ,
-                relative_address                    );
+                detail->relative_address            );
 
     FILE *fp = popen(cmd, "r");
     
@@ -388,29 +410,56 @@ static int PrintFileAndLineFromAddr(void* addr, char* output_buffer, unsigned in
     while (fgets(line, sizeof(line), fp) != NULL)
     {
         line[strcspn(line, "\n")] = 0;
-        
-        char* at_pos = strstr(line, DBG_MTX_FN_PATH_LINE_DELIMITER);
-        if(!at_pos)
-            snprintf(   output_buffer + strlen(output_buffer)                           ,
-                        (DBG_MTX_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(output_buffer)),
-                        DBG_MTX_FN_PATH_HALF_DELIMITER                                  ,
-                        address_index                                                   ,
-                        addr                                                            ,
-                        relative_address                                                ,
-                        line                                                            );
+
+        char* at_pos = strrchr(line, DBG_MTX_FN_LINE_DELIMITER);
+        if(at_pos)
+        {
+            char* acq_line_start = at_pos + sizeof(char);
+            
+            if(acq_line_start && acq_line_start[0] >= '0' && acq_line_start[0] <= '9')
+                detail->line = atol(acq_line_start);
+            else
+                detail->line = 0;
+            
+            memset(at_pos, 0, strlen(at_pos));
+            strncpy(detail->file_path, line, PATH_MAX);
+        }
         else
-            strncat(output_buffer + strlen(output_buffer)                               ,
-                    line                                                                ,
-                    (DBG_MTX_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(output_buffer))    );
+        {
+            strncpy(detail->function_name, line, DBG_MTX_ACQ_FN_NAME_LEN);
+        }
     }
 
     pclose(fp);
 
-    strncat(output_buffer + strlen(output_buffer)                               ,
-            "\r\n"                                                              ,
-            (DBG_MTX_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(output_buffer))    );
-
     return 0;
+}
+
+static int __attribute__((unused)) PrintFileAndLineFromAddr(void* addr, char* output_buffer, unsigned int address_index, DBG_MTX_ACQ_LOCATION_DETAIL* detail)
+{
+    int ret = DbgMutexGetLockDetailFromAddr(addr, detail);
+    
+    snprintf(   output_buffer + strlen(output_buffer)                           ,
+                (DBG_MTX_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(output_buffer)),
+                DBG_MTX_ACQ_LOCATION_FULL_FORMAT                                ,
+                address_index                                                   ,
+                addr                                                            ,
+                detail->relative_address                                        ,
+                detail->function_name                                           ,
+                detail->file_path                                               ,
+                detail->line                                                    );
+    
+    if(detail->line == 0)
+    {
+        char* line_delimiter_pos = strrchr(output_buffer, DBG_MTX_FN_LINE_DELIMITER);
+        if(line_delimiter_pos)
+        {
+            memset(line_delimiter_pos, 0, strlen(line_delimiter_pos));
+            strncat(output_buffer, "\r\n", (DBG_MTX_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(output_buffer)));
+        }
+    }
+
+    return ret;
 }
 
 static __attribute__((noinline)) void* TestDbgGetFuncRetAddr(void)
