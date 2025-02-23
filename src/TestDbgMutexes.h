@@ -4,6 +4,7 @@
 /******* Shared function prototypes ******/
 
 void TestDbgMutexes(void);
+void TestCommonMutexes(void);
 
 /*****************************************/
 
