@@ -89,20 +89,20 @@
 (DbgMutexAttrInit(p_dbg_mtx, mutex_type, priority, proc_sharing))
 #define DBG_MTX_INIT(p_dbg_mtx)                 DbgMutexInit(p_dbg_mtx)
 
-#define DBG_MTX_ATTR_INIT_FN(p_dbg_mtx, mutex_type, priority, proc_sharing, cleanup_var_name)\
+#define DBG_MTX_ATTR_INIT_SC(p_dbg_mtx, mutex_type, priority, proc_sharing, cleanup_var_name)\
 DBG_MTX* cleanup_var_name __attribute__((cleanup(DbgDestroyMutexAttrCleanup))) = \
 (DbgMutexAttrInitAddr(p_dbg_mtx, mutex_type, priority, proc_sharing))
-#define DBG_MTX_INIT_FN(p_dbg_mtx, cleanup_var_name)\
+#define DBG_MTX_INIT_SC(p_dbg_mtx, cleanup_var_name)\
 DBG_MTX* cleanup_var_name __attribute__((cleanup(DbgDestroyMutexCleanup))) = \
 (DbgMutexInitAddr(p_dbg_mtx))
 
 #define DBG_MTX_LOCK(p_dbg_mtx)                 DbgMutexLock((p_dbg_mtx), TestDbgGetFuncRetAddr(), 0)
 #define DBG_MTX_TIMED_LOCK(p_dbg_mtx, tout_ns)  DbgMutexLock((p_dbg_mtx), TestDbgGetFuncRetAddr(), tout_ns)
 
-#define DBG_MTX_LOCK_FN(p_dbg_mtx, cleanup_var_name)\
+#define DBG_MTX_LOCK_SC(p_dbg_mtx, cleanup_var_name)\
 DBG_MTX* cleanup_var_name __attribute__((cleanup(DbgReleaseMutexCleanup))) = \
 (DbgMutexLockAddr(p_dbg_mtx, TestDbgGetFuncRetAddr(), 0))
-#define DBG_MTX_TIMED_LOCK_FN(p_dbg_mtx, tout_ns, cleanup_var_name)\
+#define DBG_MTX_TIMED_LOCK_SC(p_dbg_mtx, tout_ns, cleanup_var_name)\
 DBG_MTX* cleanup_var_name __attribute__((cleanup(DbgReleaseMutexCleanup))) = \
 (DbgMutexLockAddr(p_dbg_mtx, TestDbgGetFuncRetAddr(), tout_ns))
 
@@ -212,7 +212,7 @@ static DBG_MTX acq_info_lock;
 
 static void __attribute__((constructor)) DbgMutexInitModule(void)
 {
-    DBG_MTX_ATTR_INIT_FN(   &acq_info_lock          ,
+    DBG_MTX_ATTR_INIT_SC(   &acq_info_lock          ,
                             PTHREAD_MUTEX_ERRORCHECK,
                             PTHREAD_PRIO_INHERIT    ,
                             PTHREAD_PROCESS_PRIVATE ,
@@ -470,7 +470,7 @@ static int DbgMutexLock(DBG_MTX* p_debug_mutex, void* restrict address, const ui
 
     int try_lock;
 
-    DBG_MTX_LOCK_FN(&acq_info_lock, p_acq_info_lock);
+    DBG_MTX_LOCK_SC(&acq_info_lock, p_acq_info_lock);
     memcpy(&target_mutex_acq_location, &p_debug_mutex->mutex_acq_location, sizeof(DBG_MTX_ACQ_LOCATION));
     DBG_MTX_UNLOCK(&acq_info_lock);
 
@@ -684,11 +684,11 @@ static void* TestDbgThreadRoutine(void* arg)
 
     DBG_MTX_TEST_PAIR* p_dbg_mtx_test_pair = (DBG_MTX_TEST_PAIR*)arg;
 
-    DBG_MTX_LOCK_FN(p_dbg_mtx_test_pair->p_dbg_mtx_first, cleanup_var_first);
+    DBG_MTX_LOCK_SC(p_dbg_mtx_test_pair->p_dbg_mtx_first, cleanup_var_first);
 
     usleep(DBG_MTX_DEADLOCK_SLEEP_US); // Let the current thread take a nap so as to cause a deadlock.
 
-    DBG_MTX_TIMED_LOCK_FN(p_dbg_mtx_test_pair->p_dbg_mtx_second, DBG_MTX_DEFAULT_TOUT, cleanup_var_second);
+    DBG_MTX_TIMED_LOCK_SC(p_dbg_mtx_test_pair->p_dbg_mtx_second, DBG_MTX_DEFAULT_TOUT, cleanup_var_second);
 
     return NULL;
 }
@@ -727,8 +727,8 @@ void TestDbgMutexes(void)
     DBG_MTX_CREATE(debug_mutex_0);
     DBG_MTX_CREATE(debug_mutex_1);
 
-    DBG_MTX_INIT_FN(&debug_mutex_0, cleanup_var_0);
-    DBG_MTX_INIT_FN(&debug_mutex_1, cleanup_var_1);
+    DBG_MTX_INIT_SC(&debug_mutex_0, cleanup_var_0);
+    DBG_MTX_INIT_SC(&debug_mutex_1, cleanup_var_1);
 
     DBG_MTX_TEST_PAIR debug_mutex_test_pair_0 =
     {
