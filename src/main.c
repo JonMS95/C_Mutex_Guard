@@ -35,20 +35,19 @@ double TestFunctionElapsedTime(void test_fn (void), char* test_fn_name)
 
 int main()
 {
-    // double time_records_common[NUM_OF_TESTS];
-    // double time_records_debug[NUM_OF_TESTS];
-    double avg_time_common  = 0;
-    double avg_time_debug   = 0;
+    // double avg_time_common  = 0;
+    // double avg_time_debug   = 0;
 
-    for(int i = 0; i < NUM_OF_TESTS; i++)
-    {
-        // avg_time_common += (TEST_FN_TIME(TestCommonMutexes) / NUM_OF_TESTS);
-        avg_time_debug += (TEST_FN_TIME(TestDbgMutexes) / NUM_OF_TESTS);
-                avg_time_common += (TEST_FN_TIME(TestCommonMutexes) / NUM_OF_TESTS);
-    }
+    // for(int i = 0; i < NUM_OF_TESTS; i++)
+    // {
+    //     avg_time_debug += (TEST_FN_TIME(TestDbgMutexes) / NUM_OF_TESTS);
+    //     avg_time_common += (TEST_FN_TIME(TestCommonMutexes) / NUM_OF_TESTS);
+    // }
 
-    printf("Average time taken (common): %f\r\n", avg_time_common);
-    printf("Average time taken (debug):  %f\r\n", avg_time_debug);
+    // printf("Average time taken (common): %f\r\n", avg_time_common);
+    // printf("Average time taken (debug):  %f\r\n", avg_time_debug);
     
+    TestDbgMutexes();
+
     return 0;
 }
