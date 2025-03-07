@@ -11,28 +11,17 @@
 #include <errno.h>
 #include <execinfo.h>
 #include <stdbool.h>
+#include "MutexGuard_api.h"
 
 /*****************************************/
 
 /*********** Define statements ***********/
 
-#ifndef __MTX_GRD_TOUT_SECS__
-#define __MTX_GRD_TOUT_SECS__   1
-#endif
-
-#ifndef __MTX_GRD_ADDR_NUM__
-#define __MTX_GRD_ADDR_NUM__    10
-#endif
-
 #ifndef __MTX_GRD_FULL_BT_MAX_SIZE__
 #define __MTX_GRD_FULL_BT_MAX_SIZE__    100
 #endif
 
-#define MTX_GRD_DEADLOCK_SLEEP_US   (uint32_t)1000000
 #define MTX_GRD_TOUT_1_SEC_AS_NS    (uint64_t)1000000000
-#define MTX_GRD_DEFAULT_TOUT        (uint64_t)(MTX_GRD_TOUT_1_SEC_AS_NS * __MTX_GRD_TOUT_SECS__)
-
-#define MTX_GRD_MSG_ERR_THREAD_CREATION "Could not initialize thread <%d>.\r\n"
 
 #define MTX_GRD_PROC_MAX_LEN                (uint16_t)256
 #define MTX_GRD_PROC_MAPS_PATH              "/proc/self/maps"
@@ -77,78 +66,7 @@
 
 #define MTX_GRD_BT_FOOTER   "BT END" 
 
-/**************** Macros *****************/
-
-#define MTX_GRD_CREATE(var_name)    MTX_GRD var_name = {0}
-
-#define MTX_GRD_ATTR_INIT(p_mtx_grd, mutex_type, priority, proc_sharing)\
-(MutexGuardAttrInit(p_mtx_grd, mutex_type, priority, proc_sharing))
-
-#define MTX_GRD_INIT(p_mtx_grd) MutexGuardInit(p_mtx_grd)
-
-#define MTX_GRD_ATTR_INIT_SC(p_mtx_grd, mutex_type, priority, proc_sharing, cleanup_var_name)\
-MTX_GRD* cleanup_var_name __attribute__((cleanup(MutexGuardDestroyAttrCleanup))) = \
-(MutexGuardAttrInitAddr(p_mtx_grd, mutex_type, priority, proc_sharing))
-
-#define MTX_GRD_INIT_SC(p_mtx_grd, cleanup_var_name)\
-MTX_GRD* cleanup_var_name __attribute__((cleanup(MutexGuardDestroyMutexCleanup))) = \
-(MutexGuardInitAddr(p_mtx_grd))
-
-#define MTX_GRD_TRY_LOCK(p_mtx_grd)                 MutexGuardLock((p_mtx_grd), MutexGuardGetFuncRetAddr(), 0, MTX_GRD_LOCK_TYPE_TRY)
-#define MTX_GRD_LOCK(p_mtx_grd)                     MutexGuardLock((p_mtx_grd), MutexGuardGetFuncRetAddr(), 0, MTX_GRD_LOCK_TYPE_PERMANENT)
-#define MTX_GRD_TIMED_LOCK(p_mtx_grd, tout_ns)      MutexGuardLock((p_mtx_grd), MutexGuardGetFuncRetAddr(), tout_ns, MTX_GRD_LOCK_TYPE_TIMED)
-#define MTX_GRD_PERIODIC_LOCK(p_mtx_grd, tout_ns)   MutexGuardLock((p_mtx_grd), MutexGuardGetFuncRetAddr(), tout_ns, MTX_GRD_LOCK_TYPE_PERIODIC)
-
-#define MTX_GRD_TRY_LOCK_SC(p_mtx_grd, cleanup_var_name)\
-MTX_GRD* cleanup_var_name __attribute__((cleanup(MutexGuardReleaseMutexCleanup))) = \
-(MutexGuardLockAddr(p_mtx_grd, MutexGuardGetFuncRetAddr(), 0, MTX_GRD_LOCK_TYPE_TRY))
-
-#define MTX_GRD_LOCK_SC(p_mtx_grd, cleanup_var_name)\
-MTX_GRD* cleanup_var_name __attribute__((cleanup(MutexGuardReleaseMutexCleanup))) = \
-(MutexGuardLockAddr(p_mtx_grd, MutexGuardGetFuncRetAddr(), 0, MTX_GRD_LOCK_TYPE_PERMANENT))
-
-#define MTX_GRD_TIMED_LOCK_SC(p_mtx_grd, tout_ns, cleanup_var_name)\
-MTX_GRD* cleanup_var_name __attribute__((cleanup(MutexGuardReleaseMutexCleanup))) = \
-(MutexGuardLockAddr(p_mtx_grd, MutexGuardGetFuncRetAddr(), tout_ns, MTX_GRD_LOCK_TYPE_TIMED))
-
-#define MTX_GRD_PERIODIC_LOCK_SC(p_mtx_grd, tout_ns, cleanup_var_name)\
-MTX_GRD* cleanup_var_name __attribute__((cleanup(MutexGuardReleaseMutexCleanup))) = \
-(MutexGuardLockAddr(p_mtx_grd, MutexGuardGetFuncRetAddr(), tout_ns, MTX_GRD_LOCK_TYPE_PERIODIC))
-
-#define MTX_GRD_UNLOCK(p_mtx_grd)       MutexGuardUnlock(p_mtx_grd)
-#define MTX_GRD_DESTROY(p_mtx_grd)      MutexGuardDestroy(p_mtx_grd)
-#define MTX_GRD_ATTR_DESTROY(p_mtx_grd) MutexGuardAttrDestroy(p_mtx_grd)
-
-/*****************************************/
-
 /******* Private type definitions ********/
-
-typedef struct
-{
-    void*           addresses[__MTX_GRD_ADDR_NUM__];
-    pthread_t       thread_id;
-} MTX_GRD_ACQ_LOCATION;
-
-typedef struct
-{
-    pthread_mutex_t         mutex;
-    pthread_mutexattr_t     mutex_attr;
-    MTX_GRD_ACQ_LOCATION    mutex_acq_location;
-    unsigned long long      lock_counter;
-    void*                   additional_data;
-} MTX_GRD;
-
-typedef struct
-{
-    MTX_GRD* p_mtx_grd_first;
-    MTX_GRD* p_mtx_grd_second;
-} MTX_GRD_TEST_PAIR;
-
-typedef struct
-{
-    pthread_mutex_t* p_mtx_first;
-    pthread_mutex_t* p_mtx_second;
-} COMMON_MTX_TEST_PAIR;
 
 typedef struct
 {
@@ -158,26 +76,6 @@ typedef struct
     char                file_path[PATH_MAX + 1];
 } MTX_GRD_ACQ_LOCATION_DETAIL;
 
-typedef enum
-{
-    MTX_GRD_LOCK_TYPE_TRY       = 0                         ,
-    MTX_GRD_LOCK_TYPE_PERMANENT                             ,
-    MTX_GRD_LOCK_TYPE_TIMED                                 ,
-    MTX_GRD_LOCK_TYPE_PERIODIC                              ,
-    MTX_GRD_LOCK_TYPE_MIN       = MTX_GRD_LOCK_TYPE_TRY     ,
-    MTX_GRD_LOCK_TYPE_MAX       = MTX_GRD_LOCK_TYPE_PERIODIC,
-} MTX_GRD_LOCK_TYPES;
-
-typedef enum
-{
-    MTX_GRD_VERBOSITY_SILENT    = 0                         ,
-    MTX_GRD_VERBOSITY_LOCK_ERROR                            ,
-    MTX_GRD_VERBOSITY_BT                                    ,
-    MTX_GRD_VERBOSITY_ALL                                   , // Both lock errors as well as lock/unlock backtraces are printed.
-    MTX_GRD_VERBOSITY_MIN       = MTX_GRD_VERBOSITY_SILENT  ,
-    MTX_GRD_VERBOSITY_MAX       = MTX_GRD_VERBOSITY_ALL     ,
-} MTX_GRD_VERBOSITY_LEVEL;
-
 typedef struct timespec mtx_to_t;
 
 /*****************************************/
@@ -186,18 +84,6 @@ typedef struct timespec mtx_to_t;
 
 static          void        MutexGuardInitModule(void) __attribute__((constructor));
 static          void        MutexGuardEndModule(void) __attribute__((destructor));
-
-static void                 MutexGuardSetPrintStatus(const MTX_GRD_VERBOSITY_LEVEL target_verbosity_level) __attribute__((unused));
-static          int         MutexGuardAttrInit( MTX_GRD* restrict p_mutex_guard ,
-                                                const int mutex_type            ,
-                                                const int priority              ,
-                                                const int proc_sharing          );
-static          MTX_GRD*    MutexGuardAttrInitAddr( MTX_GRD* restrict p_mutex_guard ,
-                                                    const int mutex_type            , 
-                                                    const int priority              ,
-                                                    const int proc_sharing          );
-static  inline  int         MutexGuardInit(MTX_GRD* restrict p_mutex_guard);
-static  inline  MTX_GRD*    MutexGuardInitAddr(MTX_GRD* restrict p_mutex_guard);
 
 static          int         MutexGuardStoreNewAddress(MTX_GRD* restrict p_mutex_guard, void* address);
 static          int         MutexGuardRemoveLatestAddress(MTX_GRD* restrict p_mutex_guard);
@@ -209,40 +95,15 @@ static          void        MutexGuardPrintLockErrorCause(  const MTX_GRD_ACQ_LO
                                                             char* lock_error_string                                         );
 static          void        MutexGuardPrintLockAddresses(const MTX_GRD_ACQ_LOCATION* p_mutex_guard_acq_location, char* lock_error_string);
 
-static          void        MutexGuardPrintLockError(   const MTX_GRD_ACQ_LOCATION* restrict p_mutex_guard_acq_location ,
-                                                        const pthread_mutex_t* restrict target_mutex_addr               ,
-                                                        const uint64_t timeout_ns                                       ,
-                                                        const int ret_lock                                              );
-static          int         MutexGuardLock( MTX_GRD* p_mutex_guard      ,
-                                            void* restrict address      ,
-                                            const uint64_t timeout_ns   ,
-                                            const int lock_type         );
-static  inline  MTX_GRD*    MutexGuardLockAddr(   MTX_GRD* restrict p_mutex_guard ,
-                                                void* restrict address          ,
-                                                const uint64_t timeout_ns       ,
-                                                const int lock_type             );
-
 static          size_t      MutexGuardGetExecutableBaseddress(void);
 static          int         MutexGuardGetLockDetailFromAddr(const void* restrict addr                   ,
-                                                            MTX_GRD_ACQ_LOCATION_DETAIL* restrict detail)
-                                                            __attribute__((unused));
+                                                            MTX_GRD_ACQ_LOCATION_DETAIL* restrict detail);
 static          int         MutexGuardPrintFileAndLineFromAddr( const void* restrict addr                   ,
                                                                 char* output_buffer                         ,
                                                                 const unsigned int address_index            ,
-                                                                MTX_GRD_ACQ_LOCATION_DETAIL* restrict detail)
-                                                                __attribute__((unused));
-
-static          void*       MutexGuardGetFuncRetAddr(void) __attribute__((noinline)) ;
-static          int         MutexGuardUnlock(MTX_GRD* restrict p_mtx_grd);
-static          void        MutexGuardReleaseMutexCleanup(void* ptr);
-static  inline  int         MutexGuardAttrDestroy(MTX_GRD* restrict p_mtx_grd) __attribute__((unused));
-static          void        MutexGuardDestroyAttrCleanup(void* ptr) __attribute__((unused));
-static  inline  int         MutexGuardDestroy(MTX_GRD* restrict p_mtx_grd);
-static          void        MutexGuardDestroyMutexCleanup(void* ptr) __attribute__((unused));
+                                                                MTX_GRD_ACQ_LOCATION_DETAIL* restrict detail);
 
 static          void        MutexGuardShowBacktrace(const pthread_mutex_t* restrict p_locked_mutex, const bool is_lock);
-
-static          void*       TestDbgThreadRoutine(void* arg);
 
 /*****************************************/
 
@@ -272,16 +133,16 @@ static void __attribute__((destructor)) MutexGuardEndModule(void)
     MTX_GRD_DESTROY(&acq_info_lock);
 }
 
-static void __attribute__((unused)) MutexGuardSetPrintStatus(const MTX_GRD_VERBOSITY_LEVEL target_verbosity_level)
+void MutexGuardSetPrintStatus(const MTX_GRD_VERBOSITY_LEVEL target_verbosity_level)
 {
     if( (target_verbosity_level >= MTX_GRD_VERBOSITY_MIN) && (target_verbosity_level <= MTX_GRD_VERBOSITY_MAX) )
         verbosity_level = target_verbosity_level;
 }
 
-static int MutexGuardAttrInit(  MTX_GRD* restrict p_mutex_guard ,
-                                const int mutex_type            ,
-                                const int priority              ,
-                                const int proc_sharing          )
+int MutexGuardAttrInit( MTX_GRD* restrict p_mutex_guard ,
+                        const int mutex_type            ,
+                        const int priority              ,
+                        const int proc_sharing          )
 {
     if(!p_mutex_guard)
         return -1;
@@ -296,20 +157,20 @@ static int MutexGuardAttrInit(  MTX_GRD* restrict p_mutex_guard ,
     return 0;
 }
 
-static inline MTX_GRD* MutexGuardAttrInitAddr(  MTX_GRD* restrict p_mutex_guard ,
-                                                const int mutex_type            ,
-                                                const int priority              ,
-                                                const int proc_sharing          )
+inline MTX_GRD* MutexGuardAttrInitAddr( MTX_GRD* restrict p_mutex_guard ,
+                                        const int mutex_type            ,
+                                        const int priority              ,
+                                        const int proc_sharing          )
 {
     return (MutexGuardAttrInit(p_mutex_guard, mutex_type, priority, proc_sharing) ? NULL : p_mutex_guard);
 }
 
-static inline int MutexGuardInit(MTX_GRD* restrict p_mutex_guard)
+inline int MutexGuardInit(MTX_GRD* restrict p_mutex_guard)
 {
     return (p_mutex_guard ? pthread_mutex_init(&p_mutex_guard->mutex, &p_mutex_guard->mutex_attr) : -1);
 }
 
-static inline MTX_GRD* MutexGuardInitAddr(MTX_GRD* restrict p_mutex_guard)
+inline MTX_GRD* MutexGuardInitAddr(MTX_GRD* restrict p_mutex_guard)
 {
     return (MutexGuardInit(p_mutex_guard) ? NULL : p_mutex_guard);
 }
@@ -405,10 +266,10 @@ static void MutexGuardPrintLockAddresses(const MTX_GRD_ACQ_LOCATION* p_mutex_gua
     }
 }
 
-static void MutexGuardPrintLockError(   const MTX_GRD_ACQ_LOCATION* restrict p_mutex_guard_acq_location ,
-                                        const pthread_mutex_t* restrict target_mutex_addr               ,
-                                        const uint64_t timeout_ns                                       ,
-                                        const int ret_lock                                              )
+void MutexGuardPrintLockError(  const MTX_GRD_ACQ_LOCATION* restrict p_mutex_guard_acq_location ,
+                                const pthread_mutex_t* restrict target_mutex_addr               ,
+                                const uint64_t timeout_ns                                       ,
+                                const int ret_lock                                              )
 {
     char lock_error_string[MTX_GRD_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN] = {0};
 
@@ -492,7 +353,7 @@ static void MutexGuardShowBacktrace(const pthread_mutex_t* restrict p_locked_mut
 
             detail.relative_address = (void*)rel_addr;
             
-            int __attribute__((unused)) ret = MutexGuardGetLockDetailFromAddr(NULL, &detail);
+            int ret = MutexGuardGetLockDetailFromAddr(NULL, &detail);
 
             if(strcmp(detail.file_path, MTX_GRD_BT_NOT_FOUND_SYMBOL))
                 snprintf(   (lock_error_string + strlen(lock_error_string))                     ,
@@ -520,7 +381,7 @@ static void MutexGuardShowBacktrace(const pthread_mutex_t* restrict p_locked_mut
     }
 }
 
-static int MutexGuardLock(MTX_GRD* p_mutex_guard, void* restrict address, const uint64_t timeout_ns, const int lock_type)
+int MutexGuardLock(MTX_GRD* p_mutex_guard, void* restrict address, const uint64_t timeout_ns, const int lock_type)
 {
     if(!p_mutex_guard)
         return -1;
@@ -594,7 +455,7 @@ static int MutexGuardLock(MTX_GRD* p_mutex_guard, void* restrict address, const 
         return ret_lock;
     }
 
-    int __attribute__((unused)) store_addr = MutexGuardStoreNewAddress(p_mutex_guard, address);
+    int  store_addr = MutexGuardStoreNewAddress(p_mutex_guard, address);
 
     p_mutex_guard->mutex_acq_location.thread_id = pthread_self();
     ++p_mutex_guard->lock_counter;
@@ -605,7 +466,7 @@ static int MutexGuardLock(MTX_GRD* p_mutex_guard, void* restrict address, const 
     return ret_lock;
 }
 
-static inline MTX_GRD* MutexGuardLockAddr(MTX_GRD* restrict p_mutex_guard, void* restrict address, const uint64_t timeout_ns, const int lock_type)
+inline MTX_GRD* MutexGuardLockAddr(MTX_GRD* restrict p_mutex_guard, void* restrict address, const uint64_t timeout_ns, const int lock_type)
 {
     return (MutexGuardLock(p_mutex_guard, address, timeout_ns, lock_type) ? NULL : p_mutex_guard);
 }
@@ -637,7 +498,7 @@ static size_t MutexGuardGetExecutableBaseddress(void)
     return start;
 }
 
-static int __attribute__((unused)) MutexGuardGetLockDetailFromAddr(const void* restrict addr, MTX_GRD_ACQ_LOCATION_DETAIL* restrict detail)
+static int MutexGuardGetLockDetailFromAddr(const void* restrict addr, MTX_GRD_ACQ_LOCATION_DETAIL* restrict detail)
 {
     char cmd[MTX_GRD_ADDR2LINE_CMD_FORMAT_MAX_LEN + 1] = {0};
     char full_path[PATH_MAX + 1] = {0};
@@ -692,10 +553,10 @@ static int __attribute__((unused)) MutexGuardGetLockDetailFromAddr(const void* r
     return 0;
 }
 
-static int __attribute__((unused)) MutexGuardPrintFileAndLineFromAddr(  const void* restrict addr                   ,
-                                                                        char* output_buffer                         ,
-                                                                        const unsigned int address_index            ,
-                                                                        MTX_GRD_ACQ_LOCATION_DETAIL* restrict detail)
+static int MutexGuardPrintFileAndLineFromAddr(  const void* restrict addr                   ,
+                                                char* output_buffer                         ,
+                                                const unsigned int address_index            ,
+                                                MTX_GRD_ACQ_LOCATION_DETAIL* restrict detail)
 {
     int ret = MutexGuardGetLockDetailFromAddr(addr, detail);
     
@@ -722,12 +583,12 @@ static int __attribute__((unused)) MutexGuardPrintFileAndLineFromAddr(  const vo
     return ret;
 }
 
-static __attribute__((noinline)) void* MutexGuardGetFuncRetAddr(void)
+__attribute__((noinline)) void* MutexGuardGetFuncRetAddr(void)
 {
     return __builtin_return_address(0); 
 }
 
-static int MutexGuardUnlock(MTX_GRD* restrict p_mtx_grd)
+int MutexGuardUnlock(MTX_GRD* restrict p_mtx_grd)
 {
     if(!p_mtx_grd)
         return -1;
@@ -757,7 +618,7 @@ static int MutexGuardUnlock(MTX_GRD* restrict p_mtx_grd)
     return ret_unlock;
 }
 
-static void MutexGuardReleaseMutexCleanup(void* ptr)
+void MutexGuardReleaseMutexCleanup(void* ptr)
 {
     if(!ptr || !(*(MTX_GRD**)ptr))
         return;
@@ -766,12 +627,12 @@ static void MutexGuardReleaseMutexCleanup(void* ptr)
     *(MTX_GRD**)ptr = NULL;
 }
 
-static inline __attribute__((unused)) int MutexGuardAttrDestroy(MTX_GRD* restrict p_mtx_grd)
+inline int MutexGuardAttrDestroy(MTX_GRD* restrict p_mtx_grd)
 {
     return pthread_mutexattr_destroy(&p_mtx_grd->mutex_attr);
 }
 
-static __attribute__((unused)) void MutexGuardDestroyAttrCleanup(void* ptr)
+void MutexGuardDestroyAttrCleanup(void* ptr)
 {
     if(!ptr || !(*(MTX_GRD**)ptr))
         return;
@@ -779,148 +640,17 @@ static __attribute__((unused)) void MutexGuardDestroyAttrCleanup(void* ptr)
     MutexGuardAttrDestroy(*(MTX_GRD**)ptr);
 }
 
-static inline int MutexGuardDestroy(MTX_GRD* restrict p_mtx_grd)
+inline int MutexGuardDestroy(MTX_GRD* restrict p_mtx_grd)
 {
     return pthread_mutex_destroy(&p_mtx_grd->mutex);
 }
 
-static __attribute__((unused)) void MutexGuardDestroyMutexCleanup(void* ptr)
+ void MutexGuardDestroyMutexCleanup(void* ptr)
 {
     if(!ptr)
         return;
 
     MutexGuardDestroy(*(MTX_GRD**)ptr);
-}
-
-static void* TestDbgThreadRoutine(void* arg)
-{
-    pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
-    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-
-    MTX_GRD_TEST_PAIR* p_mtx_grd_test_pair = (MTX_GRD_TEST_PAIR*)arg;
-
-    MTX_GRD_TRY_LOCK_SC(p_mtx_grd_test_pair->p_mtx_grd_first, cleanup_var_first);
-
-    usleep(MTX_GRD_DEADLOCK_SLEEP_US); // Let the current thread take a nap so as to cause a deadlock.
-
-    MTX_GRD_TIMED_LOCK_SC(p_mtx_grd_test_pair->p_mtx_grd_second, MTX_GRD_DEFAULT_TOUT, cleanup_var_second);
-
-    return NULL;
-}
-
-static void* TestCommonThreadRoutine(void* arg)
-{
-    pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
-    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-
-    COMMON_MTX_TEST_PAIR* p_mtx_test_pair = (COMMON_MTX_TEST_PAIR*)arg;
-
-    int ret_lock = pthread_mutex_trylock(p_mtx_test_pair->p_mtx_first);
-
-    usleep(MTX_GRD_DEADLOCK_SLEEP_US); // Let the current thread take a nap so as to cause a deadlock.
-
-    mtx_to_t lock_timeout = MutexGuardGenTimespec(MTX_GRD_DEFAULT_TOUT);
-
-    int timed_lock = pthread_mutex_timedlock(p_mtx_test_pair->p_mtx_second, &lock_timeout);
-
-    if(!timed_lock)
-    {
-        printf("TO failed\n");
-        pthread_mutex_unlock(p_mtx_test_pair->p_mtx_second);
-    }
-    
-    if(!ret_lock)
-        pthread_mutex_unlock(p_mtx_test_pair->p_mtx_first);
-
-    return NULL;
-}
-
-void TestMutexGuard(void)
-{
-    pthread_t t_0, t_1;
-    
-    MTX_GRD_CREATE(mutex_guard_0);
-    MTX_GRD_CREATE(mutex_guard_1);
-
-    MTX_GRD_INIT_SC(&mutex_guard_0, cleanup_var_0);
-    MTX_GRD_INIT_SC(&mutex_guard_1, cleanup_var_1);
-
-    MTX_GRD_TEST_PAIR mutex_guard_test_pair_0 =
-    {
-        .p_mtx_grd_first    = &mutex_guard_0,
-        .p_mtx_grd_second   = &mutex_guard_1,
-    };
-
-    MTX_GRD_TEST_PAIR mutex_guard_test_pair_1 =
-    {
-        .p_mtx_grd_first    = &mutex_guard_1,
-        .p_mtx_grd_second   = &mutex_guard_0,
-    };
-
-    if(pthread_create(&t_0, NULL, TestDbgThreadRoutine, &mutex_guard_test_pair_0))
-    {
-        printf(MTX_GRD_MSG_ERR_THREAD_CREATION, 0);
-
-        return;
-    }
-
-    if(pthread_create(&t_1, NULL, TestDbgThreadRoutine, &mutex_guard_test_pair_1))
-    {
-        printf(MTX_GRD_MSG_ERR_THREAD_CREATION, 1);
-        pthread_cancel(t_0);
-
-        return;
-    }
-
-    pthread_join(t_0, NULL);
-    pthread_join(t_1, NULL);
-}
-
-void TestCommonMutexes(void)
-{
-    pthread_t t_0, t_1;
-
-    pthread_mutex_t common_mutex_0, common_mutex_1;
-
-    pthread_mutex_init(&common_mutex_0, NULL);
-    pthread_mutex_init(&common_mutex_1, NULL);
-
-    COMMON_MTX_TEST_PAIR common_mutex_test_pair_0 =
-    {
-        .p_mtx_first    = &common_mutex_0,
-        .p_mtx_second   = &common_mutex_1,
-    };
-
-    COMMON_MTX_TEST_PAIR common_mutex_test_pair_1 =
-    {
-        .p_mtx_first    = &common_mutex_1,
-        .p_mtx_second   = &common_mutex_0,
-    };
-
-    if(pthread_create(&t_0, NULL, TestCommonThreadRoutine, &common_mutex_test_pair_0))
-    {
-        printf(MTX_GRD_MSG_ERR_THREAD_CREATION, 0);
-        pthread_mutex_destroy(&common_mutex_0);
-        pthread_mutex_destroy(&common_mutex_1);
-
-        return;
-    }
-
-    if(pthread_create(&t_1, NULL, TestCommonThreadRoutine, &common_mutex_test_pair_1))
-    {
-        printf(MTX_GRD_MSG_ERR_THREAD_CREATION, 1);
-        pthread_cancel(t_0);
-        pthread_mutex_destroy(&common_mutex_0);
-        pthread_mutex_destroy(&common_mutex_1);
-
-        return;
-    }
-
-    pthread_join(t_0, NULL);
-    pthread_join(t_1, NULL);
-
-    pthread_mutex_destroy(&common_mutex_0);
-    pthread_mutex_destroy(&common_mutex_1);
 }
 
 /*****************************************/
