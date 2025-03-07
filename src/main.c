@@ -2,7 +2,7 @@
 
 /********** Include statements ***********/
 
-#include "TestDbgMutexes.h"
+#include "MutexGuard.h"
 #include <stdio.h>
 #include <time.h>
 

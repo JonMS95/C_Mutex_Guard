@@ -186,6 +186,7 @@ typedef struct timespec mtx_to_t;
 
 static          void        MutexGuardInitModule(void) __attribute__((constructor));
 static          void        MutexGuardEndModule(void) __attribute__((destructor));
+
 static void                 MutexGuardSetPrintStatus(const MTX_GRD_VERBOSITY_LEVEL target_verbosity_level) __attribute__((unused));
 static          int         MutexGuardAttrInit( MTX_GRD* restrict p_mutex_guard ,
                                                 const int mutex_type            ,
@@ -197,6 +198,7 @@ static          MTX_GRD*    MutexGuardAttrInitAddr( MTX_GRD* restrict p_mutex_gu
                                                     const int proc_sharing          );
 static  inline  int         MutexGuardInit(MTX_GRD* restrict p_mutex_guard);
 static  inline  MTX_GRD*    MutexGuardInitAddr(MTX_GRD* restrict p_mutex_guard);
+
 static          int         MutexGuardStoreNewAddress(MTX_GRD* restrict p_mutex_guard, void* address);
 static          int         MutexGuardRemoveLatestAddress(MTX_GRD* restrict p_mutex_guard);
 static          mtx_to_t    MutexGuardGenTimespec(const uint64_t timeout_ns);
@@ -206,6 +208,7 @@ static          void        MutexGuardPrintLockErrorCause(  const MTX_GRD_ACQ_LO
                                                             const int ret_lock                                              ,
                                                             char* lock_error_string                                         );
 static          void        MutexGuardPrintLockAddresses(const MTX_GRD_ACQ_LOCATION* p_mutex_guard_acq_location, char* lock_error_string);
+
 static          void        MutexGuardPrintLockError(   const MTX_GRD_ACQ_LOCATION* restrict p_mutex_guard_acq_location ,
                                                         const pthread_mutex_t* restrict target_mutex_addr               ,
                                                         const uint64_t timeout_ns                                       ,
@@ -218,6 +221,7 @@ static  inline  MTX_GRD*    MutexGuardLockAddr(   MTX_GRD* restrict p_mutex_guar
                                                 void* restrict address          ,
                                                 const uint64_t timeout_ns       ,
                                                 const int lock_type             );
+
 static          size_t      MutexGuardGetExecutableBaseddress(void);
 static          int         MutexGuardGetLockDetailFromAddr(const void* restrict addr                   ,
                                                             MTX_GRD_ACQ_LOCATION_DETAIL* restrict detail)
@@ -227,6 +231,7 @@ static          int         MutexGuardPrintFileAndLineFromAddr( const void* rest
                                                                 const unsigned int address_index            ,
                                                                 MTX_GRD_ACQ_LOCATION_DETAIL* restrict detail)
                                                                 __attribute__((unused));
+
 static          void*       MutexGuardGetFuncRetAddr(void) __attribute__((noinline)) ;
 static          int         MutexGuardUnlock(MTX_GRD* restrict p_mtx_grd);
 static          void        MutexGuardReleaseMutexCleanup(void* ptr);
@@ -234,7 +239,9 @@ static  inline  int         MutexGuardAttrDestroy(MTX_GRD* restrict p_mtx_grd) _
 static          void        MutexGuardDestroyAttrCleanup(void* ptr) __attribute__((unused));
 static  inline  int         MutexGuardDestroy(MTX_GRD* restrict p_mtx_grd);
 static          void        MutexGuardDestroyMutexCleanup(void* ptr) __attribute__((unused));
+
 static          void        MutexGuardShowBacktrace(const pthread_mutex_t* restrict p_locked_mutex, const bool is_lock);
+
 static          void*       TestDbgThreadRoutine(void* arg);
 
 /*****************************************/
@@ -250,6 +257,7 @@ static int verbosity_level      = MTX_GRD_VERBOSITY_SILENT;
 
 static void __attribute__((constructor)) MutexGuardInitModule(void)
 {
+    MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_LOCK_ERROR);
     MTX_GRD_ATTR_INIT_SC(   &acq_info_lock          ,
                             PTHREAD_MUTEX_ERRORCHECK,
                             PTHREAD_PRIO_INHERIT    ,
@@ -270,10 +278,10 @@ static void __attribute__((unused)) MutexGuardSetPrintStatus(const MTX_GRD_VERBO
         verbosity_level = target_verbosity_level;
 }
 
-static int MutexGuardAttrInit(MTX_GRD* restrict p_mutex_guard ,
-                            const int mutex_type            ,
-                            const int priority              ,
-                            const int proc_sharing          )
+static int MutexGuardAttrInit(  MTX_GRD* restrict p_mutex_guard ,
+                                const int mutex_type            ,
+                                const int priority              ,
+                                const int proc_sharing          )
 {
     if(!p_mutex_guard)
         return -1;

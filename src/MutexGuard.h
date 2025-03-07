@@ -1,5 +1,5 @@
-#ifndef TEST_DBG_THREADS_H
-#define TEST_DBG_THREADS_H
+#ifndef MUTEX_GUARD_H
+#define MUTEX_GUARD_H
 
 /******* Shared function prototypes ******/
 
