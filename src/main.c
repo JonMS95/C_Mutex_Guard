@@ -1,4 +1,4 @@
-// Compile with: gcc -g -Wall src/*.c -lpthread -o exe/main (use -D__DBG_MTX_FULL_BT__ too if required).
+// Compile with: gcc -g -Wall src/*.c -lpthread -o exe/main (use -D__MTX_GRD_FULL_BT__ too if required).
 
 /********** Include statements ***********/
 
@@ -40,14 +40,14 @@ int main()
 
     // for(int i = 0; i < NUM_OF_TESTS; i++)
     // {
-    //     avg_time_debug += (TEST_FN_TIME(TestDbgMutexes) / NUM_OF_TESTS);
+    //     avg_time_debug += (TEST_FN_TIME(TestMutexGuard) / NUM_OF_TESTS);
     //     avg_time_common += (TEST_FN_TIME(TestCommonMutexes) / NUM_OF_TESTS);
     // }
 
     // printf("Average time taken (common): %f\r\n", avg_time_common);
     // printf("Average time taken (debug):  %f\r\n", avg_time_debug);
     
-    TestDbgMutexes();
+    TestMutexGuard();
 
     return 0;
 }
