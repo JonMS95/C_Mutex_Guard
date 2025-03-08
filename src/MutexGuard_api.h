@@ -107,7 +107,13 @@ MTX_GRD* cleanup_var_name __attribute__((cleanup(MutexGuardReleaseMutexCleanup))
 
 /******* Public function prototypes ******/
 
-C_MUTEX_GUARD_API void MutexGuardSetPrintStatus(const MTX_GRD_VERBOSITY_LEVEL target_verbosity_level);
+C_MUTEX_GUARD_API int MutexGuardGetErrorCode(void);
+
+C_MUTEX_GUARD_API const char* MutexGuardGetErrorString(const int error_code);
+
+C_MUTEX_GUARD_API void MutexGuardPrintError(const char* custom_error_msg);
+
+C_MUTEX_GUARD_API int MutexGuardSetPrintStatus(const MTX_GRD_VERBOSITY_LEVEL target_verbosity_level);
 
 C_MUTEX_GUARD_API int MutexGuardAttrInit(   MTX_GRD* restrict p_mutex_guard ,
                                             const int mutex_type            ,
@@ -158,9 +164,9 @@ C_MUTEX_GUARD_API C_MUTEX_GUARD_AINLINE int MutexGuardDestroy(MTX_GRD* restrict 
     return pthread_mutex_destroy(&p_mtx_grd->mutex);
 }
 
-C_MUTEX_GUARD_API   void                MutexGuardReleaseMutexCleanup(void* ptr);
-C_MUTEX_GUARD_API   void                MutexGuardDestroyAttrCleanup(void* ptr);
-C_MUTEX_GUARD_API   void                MutexGuardDestroyMutexCleanup(void* ptr);
+C_MUTEX_GUARD_API void MutexGuardReleaseMutexCleanup(void* ptr);
+C_MUTEX_GUARD_API void MutexGuardDestroyAttrCleanup(void* ptr);
+C_MUTEX_GUARD_API void MutexGuardDestroyMutexCleanup(void* ptr);
 
 /*****************************************/
 
