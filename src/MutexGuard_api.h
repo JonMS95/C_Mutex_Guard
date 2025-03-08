@@ -14,7 +14,9 @@ extern "C" {
 
 /*********** Define statements ***********/
 
-#define C_MUTEX_GUARD_API   __attribute__((visibility("default")))
+#define C_MUTEX_GUARD_API       __attribute__((visibility("default")))
+#define C_MUTEX_GUARD_AINLINE   inline __attribute__((always_inline))
+#define C_MUTEX_GUARD_NINLINE   __attribute__((noinline))
 
 #ifndef __MTX_GRD_ADDR_NUM__
 #define __MTX_GRD_ADDR_NUM__    10
@@ -105,40 +107,62 @@ MTX_GRD* cleanup_var_name __attribute__((cleanup(MutexGuardReleaseMutexCleanup))
 
 /******* Public function prototypes ******/
 
-C_MUTEX_GUARD_API   void  MutexGuardSetPrintStatus(const MTX_GRD_VERBOSITY_LEVEL target_verbosity_level);
+C_MUTEX_GUARD_API void MutexGuardSetPrintStatus(const MTX_GRD_VERBOSITY_LEVEL target_verbosity_level);
 
-C_MUTEX_GUARD_API   int         MutexGuardAttrInit( MTX_GRD* restrict p_mutex_guard ,
+C_MUTEX_GUARD_API int MutexGuardAttrInit( MTX_GRD* restrict p_mutex_guard ,
                                                     const int mutex_type            ,
                                                     const int priority              ,
                                                     const int proc_sharing          );
-C_MUTEX_GUARD_API   MTX_GRD*    MutexGuardAttrInitAddr( MTX_GRD* restrict p_mutex_guard ,
-                                                        const int mutex_type            , 
-                                                        const int priority              ,
-                                                        const int proc_sharing          );
 
-C_MUTEX_GUARD_API   extern inline int       MutexGuardInit(MTX_GRD* restrict p_mutex_guard);
-C_MUTEX_GUARD_API   extern inline MTX_GRD*  MutexGuardInitAddr(MTX_GRD* restrict p_mutex_guard);
+C_MUTEX_GUARD_API C_MUTEX_GUARD_AINLINE MTX_GRD* MutexGuardAttrInitAddr(MTX_GRD* restrict p_mutex_guard ,
+                                                                        const int mutex_type            , 
+                                                                        const int priority              ,
+                                                                        const int proc_sharing          )
+{
+    return (MutexGuardAttrInit(p_mutex_guard, mutex_type, priority, proc_sharing) ? NULL : p_mutex_guard);
+}
 
-C_MUTEX_GUARD_API   void    MutexGuardPrintLockError(   const MTX_GRD_ACQ_LOCATION* restrict p_mutex_guard_acq_location ,
-                                                        const pthread_mutex_t* restrict target_mutex_addr               ,
-                                                        const uint64_t timeout_ns                                       ,
-                                                        const int ret_lock                                              );
+C_MUTEX_GUARD_API C_MUTEX_GUARD_AINLINE int MutexGuardInit(MTX_GRD* restrict p_mutex_guard)
+{
+    return (p_mutex_guard ? pthread_mutex_init(&p_mutex_guard->mutex, &p_mutex_guard->mutex_attr) : -1);
+}
 
-C_MUTEX_GUARD_API                   int MutexGuardLock( MTX_GRD* p_mutex_guard      ,
-                                                        void* restrict address      ,
-                                                        const uint64_t timeout_ns   ,
-                                                        const int lock_type         );
-C_MUTEX_GUARD_API   extern inline   MTX_GRD*  MutexGuardLockAddr( MTX_GRD* restrict p_mutex_guard ,
-                                                                void* restrict address          ,
-                                                                const uint64_t timeout_ns       ,
-                                                                const int lock_type             );
+C_MUTEX_GUARD_API C_MUTEX_GUARD_AINLINE MTX_GRD*  MutexGuardInitAddr(MTX_GRD* restrict p_mutex_guard)
+{
+    return (MutexGuardInit(p_mutex_guard) ? NULL : p_mutex_guard);
+}
 
-C_MUTEX_GUARD_API   void*               MutexGuardGetFuncRetAddr(void) __attribute__((noinline));
+C_MUTEX_GUARD_API void MutexGuardPrintLockError(const MTX_GRD_ACQ_LOCATION* restrict p_mutex_guard_acq_location ,
+                                                const pthread_mutex_t* restrict target_mutex_addr               ,
+                                                const uint64_t timeout_ns                                       ,
+                                                const int ret_lock                                              );
 
-C_MUTEX_GUARD_API   int                 MutexGuardUnlock(MTX_GRD* restrict p_mtx_grd);
+C_MUTEX_GUARD_API int MutexGuardLock(   MTX_GRD* p_mutex_guard      ,
+                                        void* restrict address      ,
+                                        const uint64_t timeout_ns   ,
+                                        const int lock_type         );
 
-C_MUTEX_GUARD_API   extern inline int   MutexGuardAttrDestroy(MTX_GRD* restrict p_mtx_grd);
-C_MUTEX_GUARD_API   extern inline int   MutexGuardDestroy(MTX_GRD* restrict p_mtx_grd);
+C_MUTEX_GUARD_API C_MUTEX_GUARD_AINLINE MTX_GRD* MutexGuardLockAddr(MTX_GRD* restrict p_mutex_guard ,
+                                                            void* restrict address          ,
+                                                            const uint64_t timeout_ns       ,
+                                                            const int lock_type             )
+{
+    return (MutexGuardLock(p_mutex_guard, address, timeout_ns, lock_type) ? NULL : p_mutex_guard);
+}
+
+C_MUTEX_GUARD_API C_MUTEX_GUARD_NINLINE void* MutexGuardGetFuncRetAddr(void);
+
+C_MUTEX_GUARD_API int MutexGuardUnlock(MTX_GRD* restrict p_mtx_grd);
+
+C_MUTEX_GUARD_API C_MUTEX_GUARD_AINLINE int MutexGuardAttrDestroy(MTX_GRD* restrict p_mtx_grd)
+{
+    return pthread_mutexattr_destroy(&p_mtx_grd->mutex_attr);
+}
+
+C_MUTEX_GUARD_API C_MUTEX_GUARD_AINLINE int MutexGuardDestroy(MTX_GRD* restrict p_mtx_grd)
+{
+    return pthread_mutex_destroy(&p_mtx_grd->mutex);
+}
 
 C_MUTEX_GUARD_API   void                MutexGuardReleaseMutexCleanup(void* ptr);
 C_MUTEX_GUARD_API   void                MutexGuardDestroyAttrCleanup(void* ptr);

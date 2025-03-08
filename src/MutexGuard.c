@@ -157,24 +157,6 @@ int MutexGuardAttrInit( MTX_GRD* restrict p_mutex_guard ,
     return 0;
 }
 
-inline MTX_GRD* MutexGuardAttrInitAddr( MTX_GRD* restrict p_mutex_guard ,
-                                        const int mutex_type            ,
-                                        const int priority              ,
-                                        const int proc_sharing          )
-{
-    return (MutexGuardAttrInit(p_mutex_guard, mutex_type, priority, proc_sharing) ? NULL : p_mutex_guard);
-}
-
-inline int MutexGuardInit(MTX_GRD* restrict p_mutex_guard)
-{
-    return (p_mutex_guard ? pthread_mutex_init(&p_mutex_guard->mutex, &p_mutex_guard->mutex_attr) : -1);
-}
-
-inline MTX_GRD* MutexGuardInitAddr(MTX_GRD* restrict p_mutex_guard)
-{
-    return (MutexGuardInit(p_mutex_guard) ? NULL : p_mutex_guard);
-}
-
 static int MutexGuardStoreNewAddress(MTX_GRD* restrict p_mutex_guard, void* address)
 {
     for(int address_index = 0; address_index < __MTX_GRD_ADDR_NUM__; address_index++)
@@ -353,7 +335,7 @@ static void MutexGuardShowBacktrace(const pthread_mutex_t* restrict p_locked_mut
 
             detail.relative_address = (void*)rel_addr;
             
-            int ret = MutexGuardGetLockDetailFromAddr(NULL, &detail);
+            MutexGuardGetLockDetailFromAddr(NULL, &detail);
 
             if(strcmp(detail.file_path, MTX_GRD_BT_NOT_FOUND_SYMBOL))
                 snprintf(   (lock_error_string + strlen(lock_error_string))                     ,
@@ -370,7 +352,7 @@ static void MutexGuardShowBacktrace(const pthread_mutex_t* restrict p_locked_mut
             if(strcmp(detail.function_name, MTX_GRD_BT_NOT_FOUND_SYMBOL))
                 snprintf(   (lock_error_string + strlen(lock_error_string))                     ,
                             (MTX_GRD_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(lock_error_string)),
-                            MTX_GRD_BT_FRAME_TO_FUNCTION_FORMAT                                       ,
+                            MTX_GRD_BT_FRAME_TO_FUNCTION_FORMAT                                 ,
                             detail.function_name                                                );
 
             printf("%s\r\n", lock_error_string);
@@ -455,7 +437,9 @@ int MutexGuardLock(MTX_GRD* p_mutex_guard, void* restrict address, const uint64_
         return ret_lock;
     }
 
-    int  store_addr = MutexGuardStoreNewAddress(p_mutex_guard, address);
+    int store_addr = MutexGuardStoreNewAddress(p_mutex_guard, address);
+    if(store_addr < 0)
+        ret_lock = store_addr;
 
     p_mutex_guard->mutex_acq_location.thread_id = pthread_self();
     ++p_mutex_guard->lock_counter;
@@ -464,11 +448,6 @@ int MutexGuardLock(MTX_GRD* p_mutex_guard, void* restrict address, const uint64_
         MutexGuardShowBacktrace(&p_mutex_guard->mutex, true);
 
     return ret_lock;
-}
-
-inline MTX_GRD* MutexGuardLockAddr(MTX_GRD* restrict p_mutex_guard, void* restrict address, const uint64_t timeout_ns, const int lock_type)
-{
-    return (MutexGuardLock(p_mutex_guard, address, timeout_ns, lock_type) ? NULL : p_mutex_guard);
 }
 
 static size_t MutexGuardGetExecutableBaseddress(void)
@@ -583,7 +562,7 @@ static int MutexGuardPrintFileAndLineFromAddr(  const void* restrict addr       
     return ret;
 }
 
-__attribute__((noinline)) void* MutexGuardGetFuncRetAddr(void)
+C_MUTEX_GUARD_NINLINE void* MutexGuardGetFuncRetAddr(void)
 {
     return __builtin_return_address(0); 
 }
@@ -627,22 +606,12 @@ void MutexGuardReleaseMutexCleanup(void* ptr)
     *(MTX_GRD**)ptr = NULL;
 }
 
-inline int MutexGuardAttrDestroy(MTX_GRD* restrict p_mtx_grd)
-{
-    return pthread_mutexattr_destroy(&p_mtx_grd->mutex_attr);
-}
-
 void MutexGuardDestroyAttrCleanup(void* ptr)
 {
     if(!ptr || !(*(MTX_GRD**)ptr))
         return;
 
     MutexGuardAttrDestroy(*(MTX_GRD**)ptr);
-}
-
-inline int MutexGuardDestroy(MTX_GRD* restrict p_mtx_grd)
-{
-    return pthread_mutex_destroy(&p_mtx_grd->mutex);
 }
 
  void MutexGuardDestroyMutexCleanup(void* ptr)
