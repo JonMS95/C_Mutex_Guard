@@ -213,7 +213,7 @@ int main()
 
     // printf("Average time taken (common): %f\r\n", avg_time_common);
     // printf("Average time taken (debug):  %f\r\n", avg_time_debug);
-    
+    MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_LOCK_ERROR);
     TestMutexGuard();
 
     return 0;
