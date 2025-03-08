@@ -64,7 +64,7 @@
 #define MTX_GRD_BT_FRAME_TO_LINE_FORMAT     ":%llu"
 #define MTX_GRD_BT_FRAME_TO_FUNCTION_FORMAT " (%s)"
 
-#define MTX_GRD_BT_FOOTER   "BT END" 
+#define MTX_GRD_BT_FOOTER   "BT END"
 
 /******* Private type definitions ********/
 
@@ -75,6 +75,17 @@ typedef struct
     unsigned long long  line;
     char                file_path[PATH_MAX + 1];
 } MTX_GRD_ACQ_LOCATION_DETAIL;
+
+typedef enum
+{
+    MTX_GRD_ERR_INVALID_VERBOSITY_LEVEL = 1000,
+    MTX_GRD_ERR_NULL_MTX_GRD_NULL,
+
+    MTX_GRD_ERR_OUT_OF_BOUNDARIES_ERR,
+
+    MTX_GRD_ERR_MIN = MTX_GRD_ERR_INVALID_VERBOSITY_LEVEL,
+    MTX_GRD_ERR_MAX = MTX_GRD_ERR_OUT_OF_BOUNDARIES_ERR
+} MTX_GRD_ERR_CODE;
 
 typedef struct timespec mtx_to_t;
 
@@ -109,8 +120,16 @@ static          void        MutexGuardShowBacktrace(const pthread_mutex_t* restr
 
 /*********** Private variables ***********/
 
-static MTX_GRD acq_info_lock    = {0};
-static int verbosity_level      = MTX_GRD_VERBOSITY_SILENT;
+static MTX_GRD acq_info_lock            = {0};
+static int verbosity_level              = MTX_GRD_VERBOSITY_SILENT;
+static __thread int mutex_guard_errno   = 0;
+
+static const char* error_str_table[] =
+{
+    "Invalid verbosity level"       ,
+    "MTX_GRD null pointer"          ,
+    "Out of boundaries error code"  ,
+};
 
 /*****************************************/
 
@@ -118,7 +137,7 @@ static int verbosity_level      = MTX_GRD_VERBOSITY_SILENT;
 
 static void __attribute__((constructor)) MutexGuardInitModule(void)
 {
-    MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_LOCK_ERROR);
+    MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_SILENT);
     MTX_GRD_ATTR_INIT_SC(   &acq_info_lock          ,
                             PTHREAD_MUTEX_ERRORCHECK,
                             PTHREAD_PRIO_INHERIT    ,
@@ -133,10 +152,47 @@ static void __attribute__((destructor)) MutexGuardEndModule(void)
     MTX_GRD_DESTROY(&acq_info_lock);
 }
 
-void MutexGuardSetPrintStatus(const MTX_GRD_VERBOSITY_LEVEL target_verbosity_level)
+int MutexGuardGetErrorCode(void)
 {
-    if( (target_verbosity_level >= MTX_GRD_VERBOSITY_MIN) && (target_verbosity_level <= MTX_GRD_VERBOSITY_MAX) )
-        verbosity_level = target_verbosity_level;
+    return mutex_guard_errno;
+}
+
+const char* MutexGuardGetErrorString(const int error_code)
+{
+    int error_str_table_idx;
+
+    if( (error_code < MTX_GRD_ERR_MIN) || (error_code > MTX_GRD_ERR_MAX) )
+        error_str_table_idx = (MTX_GRD_ERR_MAX - MTX_GRD_ERR_MIN);
+    else
+        error_str_table_idx = (error_code - MTX_GRD_ERR_MIN);
+    
+    return error_str_table[error_str_table_idx];
+}
+
+void MutexGuardPrintError(const char* custom_error_msg)
+{
+    bool msg_exists = true;
+    if( (custom_error_msg == NULL) || (*custom_error_msg == '\0') )
+        msg_exists = false;
+    
+    fprintf(stderr                                              ,
+            "%s%s%s\r\n"                                        ,
+            (msg_exists ? custom_error_msg : "" )               ,
+            (msg_exists ? ": " : "" )                            ,
+            MutexGuardGetErrorString(MutexGuardGetErrorCode())  );
+}
+
+int MutexGuardSetPrintStatus(const MTX_GRD_VERBOSITY_LEVEL target_verbosity_level)
+{
+    if( (target_verbosity_level < MTX_GRD_VERBOSITY_MIN) || (target_verbosity_level > MTX_GRD_VERBOSITY_MAX) )
+    {
+        mutex_guard_errno = MTX_GRD_ERR_INVALID_VERBOSITY_LEVEL;
+        return -1;
+    }
+
+    verbosity_level = target_verbosity_level;
+    
+    return 0;
 }
 
 int MutexGuardAttrInit( MTX_GRD* restrict p_mutex_guard ,
@@ -145,7 +201,10 @@ int MutexGuardAttrInit( MTX_GRD* restrict p_mutex_guard ,
                         const int proc_sharing          )
 {
     if(!p_mutex_guard)
+    {
+        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD_NULL;
         return -1;
+    }
     
     int set_type        = pthread_mutexattr_settype(&p_mutex_guard->mutex_attr, mutex_type);
     int set_priority    = pthread_mutexattr_setprotocol(&p_mutex_guard->mutex_attr, priority);
