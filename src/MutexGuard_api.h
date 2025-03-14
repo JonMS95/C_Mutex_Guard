@@ -135,6 +135,12 @@ C_MUTEX_GUARD_API C_MUTEX_GUARD_AINLINE MTX_GRD* MutexGuardInitAddr(MTX_GRD* res
     return (MutexGuardInit(p_mutex_guard) ? NULL : p_mutex_guard);
 }
 
+C_MUTEX_GUARD_API int MutexGuardGetLockError(   const MTX_GRD* restrict p_mutex_guard   ,
+                                                const uint64_t timeout_ns               ,
+                                                const int ret_lock                      ,
+                                                char* lock_error_string                 ,
+                                                const size_t lock_error_str_size        );
+
 C_MUTEX_GUARD_API void MutexGuardPrintLockError(const MTX_GRD_ACQ_LOCATION* restrict p_mutex_guard_acq_location ,
                                                 const pthread_mutex_t* restrict target_mutex_addr               ,
                                                 const uint64_t timeout_ns                                       ,
