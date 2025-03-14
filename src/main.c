@@ -47,6 +47,13 @@ static void* TestDbgThreadRoutine(void* arg)
     usleep(MTX_GRD_DEADLOCK_SLEEP_US); // Let the current thread take a nap so as to cause a deadlock.
 
     MTX_GRD_TIMED_LOCK_SC(p_mtx_grd_test_pair->p_mtx_grd_second, MTX_GRD_DEFAULT_TOUT, cleanup_var_second);
+    cleanup_var_second = NULL;
+    if(!cleanup_var_second)
+    {
+        char err_str[100] = {0};
+        MutexGuardGetLockError(p_mtx_grd_test_pair->p_mtx_grd_second, MTX_GRD_DEFAULT_TOUT, errno, err_str, 100);
+        printf("%s\r\n", err_str);
+    }
 
     return NULL;
 }
@@ -92,7 +99,8 @@ static void* TestCommonThreadRoutine(void* arg)
 
 void TestMutexGuard(void)
 {
-    pthread_t t_0, t_1;
+    // pthread_t t_0, t_1;
+    pthread_t t_0;
     
     MTX_GRD_CREATE(mutex_guard_0);
     MTX_GRD_CREATE(mutex_guard_1);
@@ -119,16 +127,16 @@ void TestMutexGuard(void)
         return;
     }
 
-    if(pthread_create(&t_1, NULL, TestDbgThreadRoutine, &mutex_guard_test_pair_1))
-    {
-        printf(MTX_GRD_MSG_ERR_THREAD_CREATION, 1);
-        pthread_cancel(t_0);
+    // if(pthread_create(&t_1, NULL, TestDbgThreadRoutine, &mutex_guard_test_pair_1))
+    // {
+    //     printf(MTX_GRD_MSG_ERR_THREAD_CREATION, 1);
+    //     pthread_cancel(t_0);
 
-        return;
-    }
+    //     return;
+    // }
 
     pthread_join(t_0, NULL);
-    pthread_join(t_1, NULL);
+    // pthread_join(t_1, NULL);
 }
 
 void TestCommonMutexes(void)
@@ -213,7 +221,7 @@ int main()
 
     // printf("Average time taken (common): %f\r\n", avg_time_common);
     // printf("Average time taken (debug):  %f\r\n", avg_time_debug);
-    MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_LOCK_ERROR);
+    // MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_LOCK_ERROR);
     TestMutexGuard();
 
     return 0;
