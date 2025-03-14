@@ -79,10 +79,14 @@ typedef struct
 typedef enum
 {
     MTX_GRD_ERR_INVALID_VERBOSITY_LEVEL             = 1000  ,
-    MTX_GRD_ERR_NULL_MTX_GRD_NULL                           ,
+    MTX_GRD_ERR_NULL_MTX_GRD                                ,
+    MTX_GRD_ERR_NULL_MTX_GRD_ACQ                            ,
+    MTX_GRD_ERR_NULL_TARGET_STRING                          ,
+    MTX_GRD_ERR_NO_STORED_LOCK_ADDRESSES                    ,
     MTX_GRD_ERR_ATTR_SET_FAILED                             ,
     MTX_GRD_ERR_NO_ADDR_SPACE_AVAILABLE                     ,
     MTX_GRD_ERR_INVALID_LOCK_TYPE                           ,
+    MTX_GRD_ERR_LOCK_ERROR                                  ,
     MTX_GRD_ERR_STD_ERROR_CODE                              ,
     MTX_GRD_ERR_COULD_NOT_FIND_PROCESS                      ,
     MTX_GRD_ERR_COULD_NOT_CLOSE_PROC_FILE                   ,
@@ -107,13 +111,19 @@ static          void        MutexGuardEndModule(void) __attribute__((destructor)
 
 static          int         MutexGuardStoreNewAddress(MTX_GRD* restrict p_mutex_guard, void* address);
 static          int         MutexGuardRemoveLatestAddress(MTX_GRD* restrict p_mutex_guard);
+
 static          mtx_to_t    MutexGuardGenTimespec(const uint64_t timeout_ns);
-static          void        MutexGuardPrintLockErrorCause(  const MTX_GRD_ACQ_LOCATION* restrict p_mutex_guard_acq_location ,
+
+static          int         MutexGuardCopyLockError(const MTX_GRD* restrict p_mutex_guard   ,
+                                                    const uint64_t timeout_ns               ,
+                                                    const int ret_lock                      ,
+                                                    char* lock_error_string                 );
+static          int         MutexGuardPrintLockErrorCause(  const MTX_GRD_ACQ_LOCATION* restrict p_mutex_guard_acq_location ,
                                                             const pthread_mutex_t* restrict mutex_address                   ,
                                                             const uint64_t timeout_ns                                       ,
                                                             const int ret_lock                                              ,
                                                             char* lock_error_string                                         );
-static          void        MutexGuardPrintLockAddresses(const MTX_GRD_ACQ_LOCATION* p_mutex_guard_acq_location, char* lock_error_string);
+static          int         MutexGuardPrintLockAddresses(const MTX_GRD_ACQ_LOCATION* p_mutex_guard_acq_location, char* lock_error_string);
 
 static          size_t      MutexGuardGetExecutableBaseddress(void);
 static          int         MutexGuardGetLockDetailFromAddr(const void* restrict addr                   ,
@@ -135,9 +145,24 @@ static __thread int mutex_guard_errno   = 0;
 
 static const char* error_str_table[] =
 {
-    "Invalid verbosity level"       ,
-    "MTX_GRD null pointer"          ,
-    "Out of boundaries error code"  ,
+    "Invalid verbosity level"                                               ,
+    "MTX_GRD null pointer"                                                  ,
+    "MTX_GRD_ACQ_LOCATION null pointer"                                     ,
+    "Target string to write is null"                                        ,
+    "No stored lock addresses have been found"                              ,
+    "Attribute setting failed"                                              ,
+    "No space available for more addresses"                                 ,
+    "Invalid lock type provided"                                            ,
+    "Could not lock target mutex (use MutexGuardGetLockError for more info)",
+    "Standard error code (use strerror for more info)"                      ,
+    "Could not find current process information"                            ,
+    "Could not close current process information file"                      ,
+    "Could not close current executable\'s file path"                       ,
+    "Could not execute addr2line"                                           ,
+    "Could not close addr2line running process"                             ,
+    "Address counter is out of boundaries"                                  ,
+    "Out of boundaries error code"                                          ,
+    "\0"                                                                    ,
 };
 
 /*****************************************/
@@ -211,7 +236,7 @@ int MutexGuardAttrInit( MTX_GRD* restrict p_mutex_guard ,
 {
     if(!p_mutex_guard)
     {
-        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD_NULL;
+        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD;
         return -1;
     }
     
@@ -232,7 +257,7 @@ static int MutexGuardStoreNewAddress(MTX_GRD* restrict p_mutex_guard, void* addr
 {
     if(!p_mutex_guard)
     {
-        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD_NULL;
+        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD;
         return -1;
     }
 
@@ -251,7 +276,7 @@ static int MutexGuardRemoveLatestAddress(MTX_GRD* restrict p_mutex_guard)
 {
     if(!p_mutex_guard)
     {
-        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD_NULL;
+        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD;
         return -1;
     }
 
@@ -285,12 +310,91 @@ static mtx_to_t MutexGuardGenTimespec(const uint64_t timeout_ns)
     return lock_timeout;
 }
 
-static void MutexGuardPrintLockErrorCause(  const MTX_GRD_ACQ_LOCATION* restrict p_mutex_guard_acq_location ,
+static int MutexGuardCopyLockError( const MTX_GRD* restrict p_mutex_guard   ,
+                                    const uint64_t timeout_ns               ,
+                                    const int ret_lock                      ,
+                                    char* lock_error_string                 )
+{
+    if(!p_mutex_guard)
+    {
+        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD;
+        return -1;
+    }
+
+    if(!lock_error_string)
+    {
+        mutex_guard_errno = MTX_GRD_ERR_NULL_TARGET_STRING;
+        return -2;
+    }
+
+    MTX_GRD_ACQ_LOCATION mutex_guard_acq_location = {};
+
+    if(p_mutex_guard != &acq_info_lock)
+    {
+        MTX_GRD_LOCK_SC(&acq_info_lock, p_acq_info_lock);
+        memcpy(&mutex_guard_acq_location, &p_mutex_guard->mutex_acq_location, sizeof(MTX_GRD_ACQ_LOCATION));
+    }
+
+    MutexGuardPrintLockErrorCause(  &mutex_guard_acq_location                       ,
+                                    &p_mutex_guard->mutex                           ,
+                                    timeout_ns                                      ,
+                                    ret_lock                                        ,
+                                    (lock_error_string + strlen(lock_error_string)) );
+
+    MutexGuardPrintLockAddresses(   &mutex_guard_acq_location                       ,
+                                    (lock_error_string + strlen(lock_error_string)) );
+    
+    return 0;
+}
+
+int MutexGuardGetLockError( const MTX_GRD* restrict p_mutex_guard   ,
+                            const uint64_t timeout_ns               ,
+                            const int ret_lock                      ,
+                            char* lock_error_string                 ,
+                            const size_t lock_error_str_size        )
+{
+    if(!lock_error_string)
+    {
+        mutex_guard_errno = MTX_GRD_ERR_NULL_TARGET_STRING;
+        return -1;
+    }
+
+    int copy_lock_error_string = MutexGuardCopyLockError(   p_mutex_guard       ,
+                                                            timeout_ns          ,
+                                                            ret_lock            ,
+                                                            lock_error_string   );
+    
+    if(copy_lock_error_string < 0)
+    {   
+        strncat(lock_error_string                                   ,
+                MutexGuardGetErrorString(MutexGuardGetErrorCode())  ,
+                (lock_error_str_size - strlen(lock_error_string))   );
+                
+
+        return -1;
+    }
+    
+    return 0;
+}
+
+static int MutexGuardPrintLockErrorCause(   const MTX_GRD_ACQ_LOCATION* restrict p_mutex_guard_acq_location ,
                                             const pthread_mutex_t* restrict mutex_address                   ,
                                             const uint64_t timeout_ns                                       ,
                                             const int ret_lock                                              ,
                                             char* lock_error_string                                         )
 {
+    if(!p_mutex_guard_acq_location)
+    {
+        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD_ACQ;
+        return -1;
+    }
+
+    if(!lock_error_string)
+    {
+        mutex_guard_errno = MTX_GRD_ERR_NULL_TARGET_STRING;
+        return -2;
+    }
+
     if(timeout_ns > 0 && (ret_lock == ETIMEDOUT))
         snprintf(   lock_error_string + strlen(lock_error_string)                       ,
                     (MTX_GRD_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(lock_error_string)),
@@ -310,16 +414,33 @@ static void MutexGuardPrintLockErrorCause(  const MTX_GRD_ACQ_LOCATION* restrict
                     (MTX_GRD_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(lock_error_string)),
                     MTX_GRD_MSG_ERR_MUTEX_ACQ_ADDR_HEADER                               ,
                     p_mutex_guard_acq_location->thread_id                               );
+    
+    return 0;
 }
 
-static void MutexGuardPrintLockAddresses(const MTX_GRD_ACQ_LOCATION* p_mutex_guard_acq_location, char* lock_error_string)
+static int MutexGuardPrintLockAddresses(const MTX_GRD_ACQ_LOCATION* p_mutex_guard_acq_location, char* lock_error_string)
 {
+    if(!p_mutex_guard_acq_location)
+    {
+        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD_ACQ;
+        return -1;
+    }
+
+    if(!lock_error_string)
+    {
+        mutex_guard_errno = MTX_GRD_ERR_NULL_TARGET_STRING;
+        return -2;
+    }
+
     MTX_GRD_ACQ_LOCATION_DETAIL detail = {0};
 
     for(unsigned int adress_index = 0; adress_index < __MTX_GRD_ADDR_NUM__; adress_index++)
     {
         if(!p_mutex_guard_acq_location->addresses[adress_index])
-            return;
+        {
+            mutex_guard_errno = MTX_GRD_ERR_NO_STORED_LOCK_ADDRESSES;
+            return -3;
+        }
         
         MutexGuardPrintFileAndLineFromAddr( p_mutex_guard_acq_location->addresses[adress_index] ,
                                             lock_error_string                                   ,
@@ -331,6 +452,8 @@ static void MutexGuardPrintLockAddresses(const MTX_GRD_ACQ_LOCATION* p_mutex_gua
         detail.line = 0;
         detail.relative_address = NULL;
     }
+
+    return 0;
 }
 
 void MutexGuardPrintLockError(  const MTX_GRD_ACQ_LOCATION* restrict p_mutex_guard_acq_location ,
@@ -452,7 +575,7 @@ int MutexGuardLock(MTX_GRD* p_mutex_guard, void* restrict address, const uint64_
 {
     if(!p_mutex_guard)
     {
-        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD_NULL;
+        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD;
         return -1;
     }
 
@@ -526,7 +649,7 @@ int MutexGuardLock(MTX_GRD* p_mutex_guard, void* restrict address, const uint64_
         if(verbosity_level & MTX_GRD_VERBOSITY_LOCK_ERROR)
             MutexGuardPrintLockError(&target_mutex_acq_location, &p_mutex_guard->mutex, timeout_ns, ret_lock);
 
-        mutex_guard_errno = MTX_GRD_ERR_STD_ERROR_CODE;
+        mutex_guard_errno = MTX_GRD_ERR_LOCK_ERROR;
         return ret_lock;
     }
 
@@ -677,7 +800,7 @@ int MutexGuardUnlock(MTX_GRD* restrict p_mtx_grd)
 {
     if(!p_mtx_grd)
     {
-        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD_NULL;
+        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD;
         return -1;
     }
 
@@ -715,7 +838,7 @@ void MutexGuardReleaseMutexCleanup(void* ptr)
 {
     if(!ptr || !(*(MTX_GRD**)ptr))
     {
-        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD_NULL;
+        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD;
         return;
     }
     
@@ -727,7 +850,7 @@ void MutexGuardDestroyAttrCleanup(void* ptr)
 {
     if(!ptr || !(*(MTX_GRD**)ptr))
     {
-        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD_NULL;
+        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD;
         return;
     }
 
@@ -738,7 +861,7 @@ void MutexGuardDestroyAttrCleanup(void* ptr)
 {
     if(!ptr || !(*(MTX_GRD**)ptr))
     {
-        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD_NULL;
+        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD;
         return;
     }
 
