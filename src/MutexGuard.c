@@ -25,13 +25,11 @@
 
 #define MTX_GRD_PROC_MAX_LEN                (uint16_t)256
 #define MTX_GRD_PROC_MAPS_PATH              "/proc/self/maps"
-#define MTX_GRD_MSG_ERR_OPEN_PROC_MAPS      "Failed to open /proc/self/maps"
 #define MTX_GRD_CURRENT_PROC_PATH           "/proc/self/exe"
 
 #define MTX_GRD_ADDR2LINE_CMD_FORMAT_LEN        (uint8_t)26
 #define MTX_GRD_ADDR2LINE_CMD_FORMAT            "addr2line -f --exe=%s +%p"
 #define MTX_GRD_ADDR2LINE_CMD_FORMAT_MAX_LEN    MTX_GRD_ADDR2LINE_CMD_FORMAT_LEN + PATH_MAX
-#define MTX_GRD_MSG_ERR_ADDR2LINE               "Could not execute addr2line command."
 #define MTX_GRD_FN_LINE_DELIMITER               ':'
 
 #define MTX_GRD_ACQ_LOCATION_FULL_FORMAT        "#%u %p (+%p): %s defined at %s:%llu\r\n"
@@ -117,13 +115,17 @@ static          mtx_to_t    MutexGuardGenTimespec(const uint64_t timeout_ns);
 static          int         MutexGuardCopyLockError(const MTX_GRD* restrict p_mutex_guard   ,
                                                     const uint64_t timeout_ns               ,
                                                     const int ret_lock                      ,
-                                                    char* lock_error_string                 );
+                                                    char* lock_error_string                 ,
+                                                    const size_t lock_error_str_size        );
 static          int         MutexGuardPrintLockErrorCause(  const MTX_GRD_ACQ_LOCATION* restrict p_mutex_guard_acq_location ,
                                                             const pthread_mutex_t* restrict mutex_address                   ,
                                                             const uint64_t timeout_ns                                       ,
                                                             const int ret_lock                                              ,
-                                                            char* lock_error_string                                         );
-static          int         MutexGuardPrintLockAddresses(const MTX_GRD_ACQ_LOCATION* p_mutex_guard_acq_location, char* lock_error_string);
+                                                            char* lock_error_string                                         ,
+                                                            const size_t lock_error_str_size                                );
+static          int         MutexGuardPrintLockAddresses(   const MTX_GRD_ACQ_LOCATION* p_mutex_guard_acq_location  ,
+                                                            char* lock_error_string                                 ,
+                                                            const size_t lock_error_str_size                        );
 
 static          size_t      MutexGuardGetExecutableBaseddress(void);
 static          int         MutexGuardGetLockDetailFromAddr(const void* restrict addr                   ,
@@ -131,7 +133,8 @@ static          int         MutexGuardGetLockDetailFromAddr(const void* restrict
 static          int         MutexGuardPrintFileAndLineFromAddr( const void* restrict addr                   ,
                                                                 char* output_buffer                         ,
                                                                 const unsigned int address_index            ,
-                                                                MTX_GRD_ACQ_LOCATION_DETAIL* restrict detail);
+                                                                MTX_GRD_ACQ_LOCATION_DETAIL* restrict detail,
+                                                                const size_t lock_error_str_size            );
 
 static          void        MutexGuardShowBacktrace(const pthread_mutex_t* restrict p_locked_mutex, const bool is_lock);
 
@@ -313,7 +316,8 @@ static mtx_to_t MutexGuardGenTimespec(const uint64_t timeout_ns)
 static int MutexGuardCopyLockError( const MTX_GRD* restrict p_mutex_guard   ,
                                     const uint64_t timeout_ns               ,
                                     const int ret_lock                      ,
-                                    char* lock_error_string                 )
+                                    char* lock_error_string                 ,
+                                    const size_t lock_error_str_size        )
 {
     if(!p_mutex_guard)
     {
@@ -339,10 +343,12 @@ static int MutexGuardCopyLockError( const MTX_GRD* restrict p_mutex_guard   ,
                                     &p_mutex_guard->mutex                           ,
                                     timeout_ns                                      ,
                                     ret_lock                                        ,
-                                    (lock_error_string + strlen(lock_error_string)) );
+                                    (lock_error_string + strlen(lock_error_string)) ,
+                                    lock_error_str_size                             );
 
     MutexGuardPrintLockAddresses(   &mutex_guard_acq_location                       ,
-                                    (lock_error_string + strlen(lock_error_string)) );
+                                    (lock_error_string + strlen(lock_error_string)) ,
+                                    lock_error_str_size                             );
     
     return 0;
 }
@@ -362,7 +368,8 @@ int MutexGuardGetLockError( const MTX_GRD* restrict p_mutex_guard   ,
     int copy_lock_error_string = MutexGuardCopyLockError(   p_mutex_guard       ,
                                                             timeout_ns          ,
                                                             ret_lock            ,
-                                                            lock_error_string   );
+                                                            lock_error_string   ,
+                                                            lock_error_str_size );
     
     if(copy_lock_error_string < 0)
     {   
@@ -381,7 +388,8 @@ static int MutexGuardPrintLockErrorCause(   const MTX_GRD_ACQ_LOCATION* restrict
                                             const pthread_mutex_t* restrict mutex_address                   ,
                                             const uint64_t timeout_ns                                       ,
                                             const int ret_lock                                              ,
-                                            char* lock_error_string                                         )
+                                            char* lock_error_string                                         ,
+                                            const size_t lock_error_str_size                                )
 {
     if(!p_mutex_guard_acq_location)
     {
@@ -396,29 +404,31 @@ static int MutexGuardPrintLockErrorCause(   const MTX_GRD_ACQ_LOCATION* restrict
     }
 
     if(timeout_ns > 0 && (ret_lock == ETIMEDOUT))
-        snprintf(   lock_error_string + strlen(lock_error_string)                       ,
-                    (MTX_GRD_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(lock_error_string)),
-                    MTX_GRD_MSG_ERR_MUTEX_TIMEOUT                                       ,
-                    timeout_ns / MTX_GRD_TOUT_1_SEC_AS_NS                               ,
-                    timeout_ns % MTX_GRD_TOUT_1_SEC_AS_NS                               );
+        snprintf(   lock_error_string + strlen(lock_error_string)       ,
+                    (lock_error_str_size - strlen(lock_error_string))   ,
+                    MTX_GRD_MSG_ERR_MUTEX_TIMEOUT                       ,
+                    timeout_ns / MTX_GRD_TOUT_1_SEC_AS_NS               ,
+                    timeout_ns % MTX_GRD_TOUT_1_SEC_AS_NS               );
 
-    snprintf(   lock_error_string + strlen(lock_error_string)                       ,
-                (MTX_GRD_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(lock_error_string)),
-                MTX_GRD_MSG_ERR_MUTEX_ACQ                                           ,
-                pthread_self()                                                      ,
-                mutex_address                                                       ,
-                strerror(ret_lock)                                                  );
+    snprintf(   lock_error_string + strlen(lock_error_string)       ,
+                (lock_error_str_size - strlen(lock_error_string))   ,
+                MTX_GRD_MSG_ERR_MUTEX_ACQ                           ,
+                pthread_self()                                      ,
+                mutex_address                                       ,
+                strerror(ret_lock)                                  );
     
     if(p_mutex_guard_acq_location->addresses[0])
-        snprintf(   lock_error_string + strlen(lock_error_string)                       ,
-                    (MTX_GRD_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(lock_error_string)),
-                    MTX_GRD_MSG_ERR_MUTEX_ACQ_ADDR_HEADER                               ,
-                    p_mutex_guard_acq_location->thread_id                               );
+        snprintf(   lock_error_string + strlen(lock_error_string)       ,
+                    (lock_error_str_size - strlen(lock_error_string))   ,
+                    MTX_GRD_MSG_ERR_MUTEX_ACQ_ADDR_HEADER               ,
+                    p_mutex_guard_acq_location->thread_id               );
     
     return 0;
 }
 
-static int MutexGuardPrintLockAddresses(const MTX_GRD_ACQ_LOCATION* p_mutex_guard_acq_location, char* lock_error_string)
+static int MutexGuardPrintLockAddresses(const MTX_GRD_ACQ_LOCATION* p_mutex_guard_acq_location  ,
+                                        char* lock_error_string                                 ,
+                                        const size_t lock_error_str_size                        )
 {
     if(!p_mutex_guard_acq_location)
     {
@@ -445,7 +455,8 @@ static int MutexGuardPrintLockAddresses(const MTX_GRD_ACQ_LOCATION* p_mutex_guar
         MutexGuardPrintFileAndLineFromAddr( p_mutex_guard_acq_location->addresses[adress_index] ,
                                             lock_error_string                                   ,
                                             adress_index                                        ,
-                                            &detail                                             );
+                                            &detail                                             ,
+                                            lock_error_str_size                                 );
         
         memset(detail.function_name, 0, strlen(detail.function_name));
         memset(detail.file_path, 0, strlen(detail.file_path));
@@ -471,10 +482,12 @@ void MutexGuardPrintLockError(  const MTX_GRD_ACQ_LOCATION* restrict p_mutex_gua
                                     target_mutex_addr                               ,
                                     timeout_ns                                      ,
                                     ret_lock                                        ,
-                                    (lock_error_string + strlen(lock_error_string)) );
+                                    (lock_error_string + strlen(lock_error_string)) ,
+                                    MTX_GRD_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN          );
 
     MutexGuardPrintLockAddresses(   p_mutex_guard_acq_location                      ,
-                                    (lock_error_string + strlen(lock_error_string)) );
+                                    (lock_error_string + strlen(lock_error_string)) ,
+                                    MTX_GRD_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN);
 
     strncat((lock_error_string + strlen(lock_error_string))                     ,
             MTX_GRD_MSG_ERR_MUTEX_FOOTER                                        ,
@@ -672,7 +685,6 @@ static size_t MutexGuardGetExecutableBaseddress(void)
     
     if (!maps)
     {
-        perror(MTX_GRD_MSG_ERR_OPEN_PROC_MAPS);
         mutex_guard_errno = MTX_GRD_ERR_COULD_NOT_FIND_PROCESS;
         return 0;
     }
@@ -721,7 +733,6 @@ static int MutexGuardGetLockDetailFromAddr(const void* restrict addr, MTX_GRD_AC
     
     if (fp == NULL)
     {
-        perror(MTX_GRD_MSG_ERR_ADDR2LINE);
         mutex_guard_errno = MTX_GRD_ERR_COULD_NOT_EXECUTE_ADDR2LINE;
         return -2;
     }
@@ -762,21 +773,22 @@ static int MutexGuardGetLockDetailFromAddr(const void* restrict addr, MTX_GRD_AC
 static int MutexGuardPrintFileAndLineFromAddr(  const void* restrict addr                   ,
                                                 char* output_buffer                         ,
                                                 const unsigned int address_index            ,
-                                                MTX_GRD_ACQ_LOCATION_DETAIL* restrict detail)
+                                                MTX_GRD_ACQ_LOCATION_DETAIL* restrict detail,
+                                                const size_t lock_error_str_size            )
 {
     int ret = MutexGuardGetLockDetailFromAddr(addr, detail);
     if(ret < 0)
         return ret;
     
-    snprintf(   output_buffer + strlen(output_buffer)                           ,
-                (MTX_GRD_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(output_buffer)),
-                MTX_GRD_ACQ_LOCATION_FULL_FORMAT                                ,
-                address_index                                                   ,
-                addr                                                            ,
-                detail->relative_address                                        ,
-                detail->function_name                                           ,
-                detail->file_path                                               ,
-                detail->line                                                    );
+    snprintf(   output_buffer + strlen(output_buffer)           ,
+                (lock_error_str_size - strlen(output_buffer))   ,
+                MTX_GRD_ACQ_LOCATION_FULL_FORMAT                ,
+                address_index                                   ,
+                addr                                            ,
+                detail->relative_address                        ,
+                detail->function_name                           ,
+                detail->file_path                               ,
+                detail->line                                    );
     
     if(detail->line == 0)
     {
