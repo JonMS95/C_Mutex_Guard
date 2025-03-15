@@ -142,9 +142,10 @@ static          void        MutexGuardShowBacktrace(const pthread_mutex_t* restr
 
 /*********** Private variables ***********/
 
-static MTX_GRD acq_info_lock            = {0};
-static int verbosity_level              = MTX_GRD_VERBOSITY_SILENT;
-static __thread int mutex_guard_errno   = 0;
+static MTX_GRD acq_info_lock                    = {0};
+static int verbosity_level                      = MTX_GRD_VERBOSITY_SILENT;
+static __thread int mutex_guard_errno           = 0;
+static __thread int mutex_guard_lock_error_code = 0;
 
 static const char* error_str_table[] =
 {
@@ -355,7 +356,6 @@ static int MutexGuardCopyLockError( const MTX_GRD* restrict p_mutex_guard   ,
 
 int MutexGuardGetLockError( const MTX_GRD* restrict p_mutex_guard   ,
                             const uint64_t timeout_ns               ,
-                            const int ret_lock                      ,
                             char* lock_error_string                 ,
                             const size_t lock_error_str_size        )
 {
@@ -365,11 +365,11 @@ int MutexGuardGetLockError( const MTX_GRD* restrict p_mutex_guard   ,
         return -1;
     }
 
-    int copy_lock_error_string = MutexGuardCopyLockError(   p_mutex_guard       ,
-                                                            timeout_ns          ,
-                                                            ret_lock            ,
-                                                            lock_error_string   ,
-                                                            lock_error_str_size );
+    int copy_lock_error_string = MutexGuardCopyLockError(   p_mutex_guard               ,
+                                                            timeout_ns                  ,
+                                                            mutex_guard_lock_error_code ,
+                                                            lock_error_string           ,
+                                                            lock_error_str_size         );
     
     if(copy_lock_error_string < 0)
     {   
@@ -662,9 +662,13 @@ int MutexGuardLock(MTX_GRD* p_mutex_guard, void* restrict address, const uint64_
         if(verbosity_level & MTX_GRD_VERBOSITY_LOCK_ERROR)
             MutexGuardPrintLockError(&target_mutex_acq_location, &p_mutex_guard->mutex, timeout_ns, ret_lock);
 
-        mutex_guard_errno = MTX_GRD_ERR_LOCK_ERROR;
+        mutex_guard_errno           = MTX_GRD_ERR_LOCK_ERROR;
+        mutex_guard_lock_error_code = ret_lock;
+        
         return ret_lock;
     }
+
+    mutex_guard_lock_error_code = 0;
 
     int store_addr = MutexGuardStoreNewAddress(p_mutex_guard, address);
     if(store_addr < 0)
@@ -820,9 +824,13 @@ int MutexGuardUnlock(MTX_GRD* restrict p_mtx_grd)
     
     if(ret_unlock)
     {
-        mutex_guard_errno = MTX_GRD_ERR_STD_ERROR_CODE;
+        mutex_guard_lock_error_code = ret_unlock;
+        mutex_guard_errno           = MTX_GRD_ERR_STD_ERROR_CODE;
+        
         return ret_unlock;
     }
+
+    mutex_guard_lock_error_code = 0;
 
     int remove_addr = MutexGuardRemoveLatestAddress(p_mtx_grd);
 
