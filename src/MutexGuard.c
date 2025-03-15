@@ -339,16 +339,16 @@ static int MutexGuardCopyLockError( const MTX_GRD* restrict p_mutex_guard   ,
         memcpy(&mutex_guard_acq_location, &p_mutex_guard->mutex_acq_location, sizeof(MTX_GRD_ACQ_LOCATION));
     }
 
-    MutexGuardPrintLockErrorCause(  &mutex_guard_acq_location                       ,
-                                    &p_mutex_guard->mutex                           ,
-                                    timeout_ns                                      ,
-                                    ret_lock                                        ,
-                                    (lock_error_string + strlen(lock_error_string)) ,
-                                    lock_error_str_size                             );
+    MutexGuardPrintLockErrorCause(  &mutex_guard_acq_location                           ,
+                                    &p_mutex_guard->mutex                               ,
+                                    timeout_ns                                          ,
+                                    ret_lock                                            ,
+                                    (lock_error_string + strlen(lock_error_string))     ,
+                                    (lock_error_str_size - strlen(lock_error_string))   );
 
-    MutexGuardPrintLockAddresses(   &mutex_guard_acq_location                       ,
-                                    (lock_error_string + strlen(lock_error_string)) ,
-                                    lock_error_str_size                             );
+    MutexGuardPrintLockAddresses(   &mutex_guard_acq_location                           ,
+                                    (lock_error_string + strlen(lock_error_string))     ,
+                                    (lock_error_str_size - strlen(lock_error_string))   );
     
     return 0;
 }
@@ -456,7 +456,7 @@ static int MutexGuardPrintLockAddresses(const MTX_GRD_ACQ_LOCATION* p_mutex_guar
                                             lock_error_string                                   ,
                                             adress_index                                        ,
                                             &detail                                             ,
-                                            lock_error_str_size                                 );
+                                            (lock_error_str_size - strlen(lock_error_string))   );
         
         memset(detail.function_name, 0, strlen(detail.function_name));
         memset(detail.file_path, 0, strlen(detail.file_path));
@@ -478,16 +478,16 @@ void MutexGuardPrintLockError(  const MTX_GRD_ACQ_LOCATION* restrict p_mutex_gua
             MTX_GRD_MSG_ERR_MUTEX_HEADER                                        ,
             (MTX_GRD_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(lock_error_string)));
 
-    MutexGuardPrintLockErrorCause(  p_mutex_guard_acq_location                      ,
-                                    target_mutex_addr                               ,
-                                    timeout_ns                                      ,
-                                    ret_lock                                        ,
-                                    (lock_error_string + strlen(lock_error_string)) ,
-                                    MTX_GRD_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN          );
+    MutexGuardPrintLockErrorCause(  p_mutex_guard_acq_location                                          ,
+                                    target_mutex_addr                                                   ,
+                                    timeout_ns                                                          ,
+                                    ret_lock                                                            ,
+                                    (lock_error_string + strlen(lock_error_string))                     ,
+                                    (MTX_GRD_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(lock_error_string)));
 
-    MutexGuardPrintLockAddresses(   p_mutex_guard_acq_location                      ,
-                                    (lock_error_string + strlen(lock_error_string)) ,
-                                    MTX_GRD_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN);
+    MutexGuardPrintLockAddresses(   p_mutex_guard_acq_location                                          ,
+                                    (lock_error_string + strlen(lock_error_string))                     ,
+                                    (MTX_GRD_MSG_ERR_MUTEX_LOCK_ERR_STR_LEN - strlen(lock_error_string)));
 
     strncat((lock_error_string + strlen(lock_error_string))                     ,
             MTX_GRD_MSG_ERR_MUTEX_FOOTER                                        ,
