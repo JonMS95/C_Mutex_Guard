@@ -47,11 +47,11 @@ static void* TestDbgThreadRoutine(void* arg)
     usleep(MTX_GRD_DEADLOCK_SLEEP_US); // Let the current thread take a nap so as to cause a deadlock.
 
     MTX_GRD_TIMED_LOCK_SC(p_mtx_grd_test_pair->p_mtx_grd_second, MTX_GRD_DEFAULT_TOUT, cleanup_var_second);
-    cleanup_var_second = NULL;
+    
     if(!cleanup_var_second)
     {
-        char err_str[10] = {0};
-        MutexGuardGetLockError(p_mtx_grd_test_pair->p_mtx_grd_second, MTX_GRD_DEFAULT_TOUT, 110, err_str, sizeof(err_str));
+        char err_str[500] = {0};
+        MutexGuardGetLockError(p_mtx_grd_test_pair->p_mtx_grd_second, MTX_GRD_DEFAULT_TOUT, err_str, sizeof(err_str));
         printf("%s\r\n", err_str);
     }
 
