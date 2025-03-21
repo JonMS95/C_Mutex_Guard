@@ -5,4 +5,5 @@ deps
 test/*
 !test/src
 obj
+csf
 API
