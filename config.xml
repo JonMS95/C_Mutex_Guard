@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+    <Project_data
+        version_major="1"
+        version_minor="0"
+        version_mode="DEBUG"
+        URL="https://github.com/JonMS95/C_Mutex_Guard"
+        type="library"
+        language="C"
+        library_name="MutexGuard"
+    />
+    <!-- Directory structure -->
+    <Directories>
+        <lib/>
+        <deps>
+            <inc/>
+            <lib/>
+        </deps>
+        <test>
+            <deps>
+                <inc/>
+                <lib/>
+            </deps>
+            <exe/>
+        </test>
+    </Directories>
+    
+    <!-- Common shell files location -->
+    <Common_shell_files
+        version_major="1"
+        version_minor="3"
+        version_mode="DEBUG"
+        local_path="~/Desktop/scripts/C/C_Common_shell_files"
+        URL="https://github.com/JonMS95/C_Common_shell_files"
+    />
+
+    <!-- Tests -->
+    <!-- Paths to dependency files for the testing executable. -->
+    <test>
+        <deps Dest="test/deps">
+            <C_Mutex_Guard
+                version_major="1"
+                version_minor="0"
+                version_mode="DEBUG"
+                local_path="."
+                URL="https://github.com/JonMS95/C_Mutex_Guard"
+            />
+        </deps>
+    </test>
+</config>
