@@ -12,10 +12,6 @@
     <!-- Directory structure -->
     <Directories>
         <lib/>
-        <deps>
-            <inc/>
-            <lib/>
-        </deps>
         <test>
             <deps>
                 <inc/>
