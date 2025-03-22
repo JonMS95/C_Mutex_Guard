@@ -1,5 +1,3 @@
-// Compile with: gcc -g -Wall src/*.c -lpthread -o exe/main (use -D__MTX_GRD_FULL_BT__ too if required).
-
 /********** Include statements ***********/
 
 #include "MutexGuard_api.h"
