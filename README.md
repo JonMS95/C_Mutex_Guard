@@ -1,5 +1,5 @@
-# C_Mutex_Guard: a POSIX thread mutexes handling library 
-The aim of this project is to build and learn about internet sockets, so it has been created for both educational and practical purposes.
+# C_Mutex_Guard: a POSIX thread mutexes handling library 🔒
+This project aims to provide a useful tool to handle POSIX thread MutExes as well as some mechanisms to retrieve debugging information.
 
 
 ## Table of contents 🗂️
@@ -8,7 +8,6 @@ The aim of this project is to build and learn about internet sockets, so it has 
 * [**Prerequisites** 🧱](#prerequisites)
 * [**Installation instructions** 📓](#installation-instructions)
   * [**Download and compile** ⚙️](#download-and-compile)
-  * [**Create certificate and private key** 🔐](#create-certificate-and-private-key)
   * [**Compile and run test** 🧪](#compile-and-run-test)
 * [**Usage** 🖱️](#usage)
 * [**To do** ☑️](#to-do)
@@ -16,8 +15,7 @@ The aim of this project is to build and learn about internet sockets, so it has 
 
 
 ## Introduction <a id="introduction"></a> 📑
-This library was started as a way for me to have a more practical approach to how TCP sockets work. I felt a bit overwhelmed at first by the large quantity of concepts I had to get a deeper understanding of.
-However, as I found out the vast amount of practical applications it may have in real life, I started regarding it as a way more amusing and enriching activity for my professional career.
+README file is yet to be completed from this point onwards.
 
 Building this project has involved a deep understanding of:
 * C/C++ programming
@@ -224,6 +222,6 @@ An example of CLI usage is provided in the [**Shell_files/test.sh**](Shell_files
 
 ## Related Documents <a id="related-documents"></a> 🗄️
 * [LICENSE](LICENSE)
-* [CONTRIBUTING.md](Docs/CONTRIBUTING.md)
-* [CHANGELOG.md](Docs/CHANGELOG.md)
+* [CONTRIBUTING.md](docs/CONTRIBUTING.md)
+* [CHANGELOG.md](docs/CHANGELOG.md)
 
