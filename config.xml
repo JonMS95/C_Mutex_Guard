@@ -34,6 +34,10 @@
     <!-- Paths to dependency files for the testing executable. -->
     <test>
         <deps Dest="test/deps">
+            <Posix_Threads
+                type="system"
+                lib_name="pthread"
+            />
             <C_Mutex_Guard
                 version_major="1"
                 version_minor="0"
