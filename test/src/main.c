@@ -1,225 +1,172 @@
 /********** Include statements ***********/
 
 #include "MutexGuard_api.h"
-#include <stdio.h>
-#include <time.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <CUnit/Basic.h>
 
 /*****************************************/
 
-#define TEST_FN_TIME(function)   TestFunctionElapsedTime(function, #function)
-#define NUM_OF_TESTS    100
+/**************** Macros *****************/
 
-#ifndef __MTX_GRD_TOUT_SECS__
-#define __MTX_GRD_TOUT_SECS__   1
-#endif
+#define ADD_SUITE(p_suite, suite_str)                       \
+do                                                          \
+{                                                           \
+    if((p_suite = CU_add_suite(suite_str, 0, 0)) == NULL)   \
+    {                                                       \
+        CU_cleanup_registry();                              \
+        return CU_get_error();                              \
+    }                                                       \
+} while (0);
 
-#define MTX_GRD_DEADLOCK_SLEEP_US   (uint32_t)1000000
-#define MTX_GRD_TOUT_1_SEC_AS_NS    (uint64_t)1000000000
-#define MTX_GRD_DEFAULT_TOUT        (uint64_t)(MTX_GRD_TOUT_1_SEC_AS_NS * __MTX_GRD_TOUT_SECS__)
+#define ADD_TEST_2_SUITE(p_suite, test)             \
+do                                                  \
+{                                                   \
+    if(CU_add_test(p_suite, #test, test) == NULL)   \
+    {                                               \
+        CU_cleanup_registry();                      \
+        return CU_get_error();                      \
+    }                                               \
+} while(0);
 
-#define MTX_GRD_MSG_ERR_THREAD_CREATION "Could not initialize thread <%d>.\r\n"
+/*****************************************/
 
-typedef struct
+/*********** Test definitions ************/
+
+/********** Return Value Tests ***********/
+
+void TestSetPrintStatus()
 {
-    MTX_GRD* p_mtx_grd_first;
-    MTX_GRD* p_mtx_grd_second;
-} MTX_GRD_TEST_PAIR;
+    CU_ASSERT_EQUAL(MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_MIN - 1), -1);
+    CU_ASSERT_EQUAL(MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_MAX + 1), -1);
 
-typedef struct
-{
-    pthread_mutex_t* p_mtx_first;
-    pthread_mutex_t* p_mtx_second;
-} COMMON_MTX_TEST_PAIR;
-
-static void* TestDbgThreadRoutine(void* arg)
-{
-    pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
-    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-
-    MTX_GRD_TEST_PAIR* p_mtx_grd_test_pair = (MTX_GRD_TEST_PAIR*)arg;
-
-    MTX_GRD_TRY_LOCK_SC(p_mtx_grd_test_pair->p_mtx_grd_first, cleanup_var_first);
-
-    usleep(MTX_GRD_DEADLOCK_SLEEP_US); // Let the current thread take a nap so as to cause a deadlock.
-
-    MTX_GRD_TIMED_LOCK_SC(p_mtx_grd_test_pair->p_mtx_grd_second, MTX_GRD_DEFAULT_TOUT, cleanup_var_second);
-    
-    if(!cleanup_var_second)
-    {
-        char err_str[500] = {0};
-        MutexGuardGetLockError(p_mtx_grd_test_pair->p_mtx_grd_second, MTX_GRD_DEFAULT_TOUT, err_str, sizeof(err_str));
-        printf("%s\r\n", err_str);
-    }
-
-    return NULL;
+    CU_ASSERT_EQUAL(MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_LOCK_ERROR), 0);
+    CU_ASSERT_EQUAL(MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_BT),         0);
+    CU_ASSERT_EQUAL(MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_ALL),        0);
+    CU_ASSERT_EQUAL(MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_SILENT),     0);
 }
 
-static void* TestCommonThreadRoutine(void* arg)
+void TestAttrInit()
 {
-    pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
-    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-
-    COMMON_MTX_TEST_PAIR* p_mtx_test_pair = (COMMON_MTX_TEST_PAIR*)arg;
-
-    int ret_lock = pthread_mutex_trylock(p_mtx_test_pair->p_mtx_first);
-
-    usleep(MTX_GRD_DEADLOCK_SLEEP_US); // Let the current thread take a nap so as to cause a deadlock.
-
-    struct timespec lock_timeout;
-    clock_gettime(CLOCK_REALTIME, &lock_timeout);
+    CU_ASSERT_EQUAL(MutexGuardAttrInit(NULL, 0, 0, 0), -1);
     
-    // Add the timeout (in nanoseconds) to the current time
-    lock_timeout.tv_sec += MTX_GRD_DEFAULT_TOUT / MTX_GRD_TOUT_1_SEC_AS_NS;
-    lock_timeout.tv_nsec += MTX_GRD_DEFAULT_TOUT % MTX_GRD_TOUT_1_SEC_AS_NS;
+    MTX_GRD_CREATE(test_mtx_grd);
     
-    // Handle possible overflow in nanoseconds (if it's >= 1 second)
-    if (lock_timeout.tv_nsec >= MTX_GRD_TOUT_1_SEC_AS_NS)
-    {
-        lock_timeout.tv_nsec -= MTX_GRD_TOUT_1_SEC_AS_NS;
-        lock_timeout.tv_sec += 1;
-    }
+    CU_ASSERT_EQUAL(MutexGuardAttrInit(&test_mtx_grd, -1, 0, 0), -2);
+    CU_ASSERT_EQUAL(MutexGuardAttrInit(&test_mtx_grd, 0, -1, 0), -2);
+    CU_ASSERT_EQUAL(MutexGuardAttrInit(&test_mtx_grd, 0, 0, -1), -2);
 
-    int timed_lock = pthread_mutex_timedlock(p_mtx_test_pair->p_mtx_second, &lock_timeout);
-
-    if(!timed_lock)
-    {
-        printf("TO failed\n");
-        pthread_mutex_unlock(p_mtx_test_pair->p_mtx_second);
-    }
-    
-    if(!ret_lock)
-        pthread_mutex_unlock(p_mtx_test_pair->p_mtx_first);
-
-    return NULL;
+    CU_ASSERT_EQUAL(MutexGuardAttrInit(&test_mtx_grd, 0, 0, 0), 0);
 }
 
-void TestMutexGuard(void)
+void TestAttrInitAddr()
 {
-    pthread_t t_0, t_1;
+    CU_ASSERT_PTR_NULL(MutexGuardAttrInitAddr(NULL, 0, 0, 0));
     
-    MTX_GRD_CREATE(mutex_guard_0);
-    MTX_GRD_CREATE(mutex_guard_1);
+    MTX_GRD_CREATE(test_mtx_grd);
+    
+    CU_ASSERT_PTR_NULL(MutexGuardAttrInitAddr(&test_mtx_grd, -1, 0, 0));
+    CU_ASSERT_PTR_NULL(MutexGuardAttrInitAddr(&test_mtx_grd, 0, -1, 0));
+    CU_ASSERT_PTR_NULL(MutexGuardAttrInitAddr(&test_mtx_grd, 0, 0, -1));
 
-    MTX_GRD_INIT_SC(&mutex_guard_0, cleanup_var_0);
-    MTX_GRD_INIT_SC(&mutex_guard_1, cleanup_var_1);
-
-    MTX_GRD_TEST_PAIR mutex_guard_test_pair_0 =
-    {
-        .p_mtx_grd_first    = &mutex_guard_0,
-        .p_mtx_grd_second   = &mutex_guard_1,
-    };
-
-    MTX_GRD_TEST_PAIR mutex_guard_test_pair_1 =
-    {
-        .p_mtx_grd_first    = &mutex_guard_1,
-        .p_mtx_grd_second   = &mutex_guard_0,
-    };
-
-    if(pthread_create(&t_0, NULL, TestDbgThreadRoutine, &mutex_guard_test_pair_0))
-    {
-        printf(MTX_GRD_MSG_ERR_THREAD_CREATION, 0);
-
-        return;
-    }
-
-    if(pthread_create(&t_1, NULL, TestDbgThreadRoutine, &mutex_guard_test_pair_1))
-    {
-        printf(MTX_GRD_MSG_ERR_THREAD_CREATION, 1);
-        pthread_cancel(t_0);
-
-        return;
-    }
-
-    pthread_join(t_0, NULL);
-    pthread_join(t_1, NULL);
+    CU_ASSERT_PTR_NOT_NULL(MutexGuardAttrInitAddr(&test_mtx_grd, 0, 0, 0));
 }
 
-void TestCommonMutexes(void)
+void TestInit()
 {
-    pthread_t t_0, t_1;
+    CU_ASSERT_NOT_EQUAL(MutexGuardInit(NULL), 0);
 
-    pthread_mutex_t common_mutex_0, common_mutex_1;
+    MTX_GRD_CREATE(test_mtx_grd);
 
-    pthread_mutex_init(&common_mutex_0, NULL);
-    pthread_mutex_init(&common_mutex_1, NULL);
-
-    COMMON_MTX_TEST_PAIR common_mutex_test_pair_0 =
-    {
-        .p_mtx_first    = &common_mutex_0,
-        .p_mtx_second   = &common_mutex_1,
-    };
-
-    COMMON_MTX_TEST_PAIR common_mutex_test_pair_1 =
-    {
-        .p_mtx_first    = &common_mutex_1,
-        .p_mtx_second   = &common_mutex_0,
-    };
-
-    if(pthread_create(&t_0, NULL, TestCommonThreadRoutine, &common_mutex_test_pair_0))
-    {
-        printf(MTX_GRD_MSG_ERR_THREAD_CREATION, 0);
-        pthread_mutex_destroy(&common_mutex_0);
-        pthread_mutex_destroy(&common_mutex_1);
-
-        return;
-    }
-
-    if(pthread_create(&t_1, NULL, TestCommonThreadRoutine, &common_mutex_test_pair_1))
-    {
-        printf(MTX_GRD_MSG_ERR_THREAD_CREATION, 1);
-        pthread_cancel(t_0);
-        pthread_mutex_destroy(&common_mutex_0);
-        pthread_mutex_destroy(&common_mutex_1);
-
-        return;
-    }
-
-    pthread_join(t_0, NULL);
-    pthread_join(t_1, NULL);
-
-    pthread_mutex_destroy(&common_mutex_0);
-    pthread_mutex_destroy(&common_mutex_1);
+    CU_ASSERT_EQUAL(MutexGuardInit(&test_mtx_grd), 0);
 }
 
-double TestFunctionElapsedTime(void test_fn (void), char* test_fn_name)
+void TestInitAddr()
 {
-    struct timespec start, end;
-    double time_taken;
+    CU_ASSERT_PTR_NULL(MutexGuardInitAddr(NULL));
 
-    // Record the start time
-    clock_gettime(CLOCK_MONOTONIC, &start);
+    MTX_GRD_CREATE(test_mtx_grd);
 
-    // Call the function you want to measure
-    test_fn();
-
-    // Record the end time
-    clock_gettime(CLOCK_MONOTONIC, &end);
-
-    // Calculate the elapsed time in seconds (and nanoseconds)
-    time_taken = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
-
-    printf("[ %s ]\tTime taken: %f seconds\n", test_fn_name, time_taken);
-
-    return time_taken;
+    CU_ASSERT_PTR_NOT_NULL(MutexGuardInitAddr(&test_mtx_grd));
 }
+
+void TestGetLockError()
+{
+    CU_ASSERT_EQUAL(MutexGuardGetLockError(NULL, 0, NULL, 0), -1);
+    
+    MTX_GRD_CREATE(test_mtx_grd);
+    
+    CU_ASSERT_EQUAL(MutexGuardGetLockError(&test_mtx_grd, 0, NULL, 0), -2);
+    
+    char str[10] = {0};
+
+    CU_ASSERT_EQUAL(MutexGuardGetLockError(&test_mtx_grd, 0, str, 0), 0);
+    CU_ASSERT_EQUAL(MutexGuardGetLockError(&test_mtx_grd, 0, str, 1), 0);
+}
+
+void TestLock()
+{
+    CU_ASSERT_EQUAL(MutexGuardLock(NULL, NULL, 0, 0), -1);
+    
+    MTX_GRD_CREATE(test_mtx_grd);
+
+    CU_ASSERT_EQUAL(MutexGuardLock(&test_mtx_grd, NULL, 0, MTX_GRD_LOCK_TYPE_MIN - 1), -2);
+    CU_ASSERT_EQUAL(MutexGuardLock(&test_mtx_grd, NULL, 0, MTX_GRD_LOCK_TYPE_MAX + 1), -2);
+
+    CU_ASSERT_EQUAL(MutexGuardLock(&test_mtx_grd, NULL, 0, MTX_GRD_LOCK_TYPE_TRY), 0);
+    CU_ASSERT_NOT_EQUAL(MutexGuardLock(&test_mtx_grd, NULL, 0, MTX_GRD_LOCK_TYPE_TRY), 0);
+}
+
+void TestLockAddr()
+{
+    CU_ASSERT_PTR_NULL(MutexGuardLockAddr(NULL, NULL, 0, 0));
+    
+    MTX_GRD_CREATE(test_mtx_grd);
+
+    CU_ASSERT_PTR_NULL(MutexGuardLockAddr(&test_mtx_grd, NULL, 0, MTX_GRD_LOCK_TYPE_MIN - 1));
+    CU_ASSERT_PTR_NULL(MutexGuardLockAddr(&test_mtx_grd, NULL, 0, MTX_GRD_LOCK_TYPE_MAX + 1));
+
+    CU_ASSERT_PTR_NOT_NULL(MutexGuardLockAddr(&test_mtx_grd, NULL, 0, MTX_GRD_LOCK_TYPE_TRY));
+    CU_ASSERT_PTR_NULL(MutexGuardLockAddr(&test_mtx_grd, NULL, 0, MTX_GRD_LOCK_TYPE_TRY));
+}
+
+void TestUnlock()
+{
+    CU_ASSERT_EQUAL(MutexGuardUnlock(NULL), -1);
+
+    MTX_GRD_CREATE(test_mtx_grd);
+    MTX_GRD_LOCK_SC(&test_mtx_grd, dummy_0);
+
+    test_mtx_grd.mutex_acq_location.addresses[0] = NULL;
+
+    CU_ASSERT_EQUAL(MutexGuardUnlock(&test_mtx_grd), -2);
+
+    MTX_GRD_LOCK_SC(&test_mtx_grd, dummy_1);
+
+    CU_ASSERT_EQUAL(MutexGuardUnlock(&test_mtx_grd), 0);
+}
+
+/*****************************************/
 
 int main()
 {
-    // double avg_time_common  = 0;
-    // double avg_time_debug   = 0;
+    if(CU_initialize_registry() != CUE_SUCCESS)
+        return CU_get_error();
+    
+    CU_pSuite pReturnValueTestsSuite;
 
-    // for(int i = 0; i < NUM_OF_TESTS; i++)
-    // {
-    //     avg_time_debug += (TEST_FN_TIME(TestMutexGuard) / NUM_OF_TESTS);
-    //     avg_time_common += (TEST_FN_TIME(TestCommonMutexes) / NUM_OF_TESTS);
-    // }
+    ADD_SUITE(pReturnValueTestsSuite, "Return values");
 
-    // printf("Average time taken (common): %f\r\n", avg_time_common);
-    // printf("Average time taken (debug):  %f\r\n", avg_time_debug);
-    MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_LOCK_ERROR);
-    TestMutexGuard();
+    ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestSetPrintStatus);
+    ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestAttrInit);
+    ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestAttrInitAddr);
+    ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestInit);
+    ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestInitAddr);
+    ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestGetLockError);
+    ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestLock);
+    ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestLockAddr);
+    ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestUnlock);
+    
+    CU_basic_run_tests();
+    CU_cleanup_registry();
 
     return 0;
 }
