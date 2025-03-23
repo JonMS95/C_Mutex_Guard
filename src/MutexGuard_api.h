@@ -207,9 +207,9 @@ C_MUTEX_GUARD_API int MutexGuardLock(   MTX_GRD* p_mutex_guard      ,
 /// @param lock_type Lock type (TR_LOCK, LOCK, TIMED_LOCK, PERIODIC_TIMED_LOCK).
 /// @return Pointer to given mutex guard structure if succeeded, NULL otherwise.
 C_MUTEX_GUARD_API C_MUTEX_GUARD_AINLINE MTX_GRD* MutexGuardLockAddr(MTX_GRD* restrict p_mutex_guard ,
-                                                            void* restrict address          ,
-                                                            const uint64_t timeout_ns       ,
-                                                            const int lock_type             ) {
+                                                                    void* restrict address          ,
+                                                                    const uint64_t timeout_ns       ,
+                                                                    const int lock_type             ) {
     return (MutexGuardLock(p_mutex_guard, address, timeout_ns, lock_type) ? NULL : p_mutex_guard);
 }
 
