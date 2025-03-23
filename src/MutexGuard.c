@@ -66,7 +66,7 @@
 
 /******* Private type definitions ********/
 
-typedef struct
+typedef struct C_MUTEX_GUARD_ALIGNED
 {
     void*               relative_address;
     char                function_name[MTX_GRD_ACQ_FN_NAME_LEN + 1];
