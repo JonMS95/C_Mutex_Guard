@@ -17,6 +17,7 @@ extern "C" {
 #define C_MUTEX_GUARD_API       __attribute__((visibility("default")))
 #define C_MUTEX_GUARD_AINLINE   inline __attribute__((always_inline))
 #define C_MUTEX_GUARD_NINLINE   __attribute__((noinline))
+#define C_MUTEX_GUARD_ALIGNED   __attribute__((aligned(sizeof(size_t))))
 
 #ifndef __MTX_GRD_ADDR_NUM__
 #define __MTX_GRD_ADDR_NUM__    10
@@ -24,13 +25,13 @@ extern "C" {
 
 /******* Private type definitions ********/
 
-typedef struct
+typedef struct C_MUTEX_GUARD_ALIGNED
 {
     void*           addresses[__MTX_GRD_ADDR_NUM__];
     pthread_t       thread_id;
 } MTX_GRD_ACQ_LOCATION;
 
-typedef struct
+typedef struct C_MUTEX_GUARD_ALIGNED
 {
     pthread_mutex_t         mutex;
     pthread_mutexattr_t     mutex_attr;
