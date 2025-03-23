@@ -321,8 +321,10 @@ static int MutexGuardRemoveLatestAddress(MTX_GRD* restrict p_mutex_guard)
     for(int address_index = (__MTX_GRD_ADDR_NUM__ - 1); address_index >= 0; address_index--)
     {
         if( p_mutex_guard->mutex_acq_location.addresses[address_index])
+        {
             p_mutex_guard->mutex_acq_location.addresses[address_index] = NULL;
-        return 0;
+            return 0;
+        }
     }
     
     mutex_guard_errno = MTX_GRD_ERR_NO_ADDR_SPACE_AVAILABLE;
@@ -409,10 +411,16 @@ int MutexGuardGetLockError( const MTX_GRD* restrict p_mutex_guard   ,
                             char* lock_error_string                 ,
                             const size_t lock_error_str_size        )
 {
+    if(!p_mutex_guard)
+    {
+        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD;
+        return -1;
+    }
+
     if(!lock_error_string)
     {
         mutex_guard_errno = MTX_GRD_ERR_NULL_TARGET_STRING;
-        return -1;
+        return -2;
     }
 
     int copy_lock_error_string = MutexGuardCopyLockError(   p_mutex_guard               ,
@@ -428,7 +436,7 @@ int MutexGuardGetLockError( const MTX_GRD* restrict p_mutex_guard   ,
                 (lock_error_str_size - strlen(lock_error_string))   );
                 
 
-        return -1;
+        return -3;
     }
     
     return 0;
@@ -714,15 +722,15 @@ int MutexGuardLock(MTX_GRD* p_mutex_guard, void* restrict address, const uint64_
 
         case MTX_GRD_LOCK_TYPE_PERIODIC:
         {
-                do
-                {
-                    ret_lock = pthread_mutex_timedlock(&p_mutex_guard->mutex, &timed_lock_timeout);
-                    
-                    if(ret_lock == ETIMEDOUT)
-                        if(verbosity_level & MTX_GRD_VERBOSITY_LOCK_ERROR)
-                            MutexGuardPrintLockError(&target_mutex_acq_location, &p_mutex_guard->mutex, timeout_ns, ret_lock);
-                }
-                while(ret_lock == ETIMEDOUT);
+            do
+            {
+                ret_lock = pthread_mutex_timedlock(&p_mutex_guard->mutex, &timed_lock_timeout);
+                
+                if(ret_lock == ETIMEDOUT)
+                    if(verbosity_level & MTX_GRD_VERBOSITY_LOCK_ERROR)
+                        MutexGuardPrintLockError(&target_mutex_acq_location, &p_mutex_guard->mutex, timeout_ns, ret_lock);
+            }
+            while(ret_lock == ETIMEDOUT);
         }   
         break;
 
