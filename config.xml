@@ -38,6 +38,10 @@
                 type="system"
                 lib_name="pthread"
             />
+            <CUnit_Tests
+                type="system"
+                lib_name="cunit"
+            />
             <C_Mutex_Guard
                 version_major="1"
                 version_minor="0"
