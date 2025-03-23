@@ -66,6 +66,7 @@
 
 /******* Private type definitions ********/
 
+/// @brief Helper struct to store mutex lock acquisition detail.
 typedef struct C_MUTEX_GUARD_ALIGNED
 {
     void*               relative_address;
@@ -74,6 +75,7 @@ typedef struct C_MUTEX_GUARD_ALIGNED
     char                file_path[PATH_MAX + 1];
 } MTX_GRD_ACQ_LOCATION_DETAIL;
 
+/// @brief Error codes to be stored in mutex_guard_errno.
 typedef enum
 {
     MTX_GRD_ERR_INVALID_VERBOSITY_LEVEL             = 1000  ,
@@ -98,6 +100,7 @@ typedef enum
     MTX_GRD_ERR_MAX = MTX_GRD_ERR_OUT_OF_BOUNDARIES_ERR     ,
 } MTX_GRD_ERR_CODE;
 
+/// @brief Alias for timespec struct. 
 typedef struct timespec mtx_to_t;
 
 /*****************************************/
@@ -142,11 +145,16 @@ static          void        MutexGuardShowBacktrace(const pthread_mutex_t* restr
 
 /*********** Private variables ***********/
 
+/// @brief Acquisition info lock. Used when trying to lock a mutex.
 static MTX_GRD acq_info_lock                    = {0};
+/// @brief Verbosity level holding variable.
 static int verbosity_level                      = MTX_GRD_VERBOSITY_SILENT;
+/// @brief MTX_GRD_ERR_CODE holding variable.
 static __thread int mutex_guard_errno           = 0;
+/// @brief Variable storing values returned by POSIX thread locking/unlocking functions.
 static __thread int mutex_guard_lock_error_code = 0;
 
+/// @brief Error code strings (related to mutex_guard_errno).
 static const char* error_str_table[] =
 {
     "Invalid verbosity level"                                               ,
@@ -173,6 +181,7 @@ static const char* error_str_table[] =
 
 /********** Function definitions *********/
 
+/// @brief Initializes module by setting default verbosity and initializing shared resources mutex.
 static void __attribute__((constructor)) MutexGuardInitModule(void)
 {
     MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_SILENT);
@@ -185,16 +194,23 @@ static void __attribute__((constructor)) MutexGuardInitModule(void)
     MTX_GRD_INIT(&acq_info_lock);
 }
 
+
+/// @brief Destroys shared resources mutex lock. 
 static void __attribute__((destructor)) MutexGuardEndModule(void)
 {
     MTX_GRD_DESTROY(&acq_info_lock);
 }
 
+/// @brief Returns Mutex Guard error code.
+/// @return Currently stored error code
 int MutexGuardGetErrorCode(void)
 {
     return mutex_guard_errno;
 }
 
+/// @brief Returns pointer to error describing string.
+/// @param error_code Target error code to be described.
+/// @return Pointer to error string.
 const char* MutexGuardGetErrorString(const int error_code)
 {
     int error_str_table_idx;
@@ -207,6 +223,8 @@ const char* MutexGuardGetErrorString(const int error_code)
     return error_str_table[error_str_table_idx];
 }
 
+/// @brief Prints error.
+/// @param custom_error_msg String to be copied to.
 void MutexGuardPrintError(const char* custom_error_msg)
 {
     bool msg_exists = true;
@@ -220,6 +238,9 @@ void MutexGuardPrintError(const char* custom_error_msg)
             MutexGuardGetErrorString(MutexGuardGetErrorCode())  );
 }
 
+/// @brief Sets verbosity level.
+/// @param target_verbosity_level Target verbosity level (silent, lock errors, backtrace or both). 
+/// @return 0 if succeeded, < 0 if invalid verbosity level was provided.
 int MutexGuardSetPrintStatus(const MTX_GRD_VERBOSITY_LEVEL target_verbosity_level)
 {
     if( (target_verbosity_level < MTX_GRD_VERBOSITY_MIN) || (target_verbosity_level > MTX_GRD_VERBOSITY_MAX) )
@@ -233,6 +254,12 @@ int MutexGuardSetPrintStatus(const MTX_GRD_VERBOSITY_LEVEL target_verbosity_leve
     return 0;
 }
 
+/// @brief Initializeds mutex attribute.
+/// @param p_mutex_guard Pointer to mutex guard structure.
+/// @param mutex_type Mutex type (NORMAL, ERRORCHECK, RECURSIVE, DEFAULT).
+/// @param priority Mutex priority (NONE, INHERIT, PROTECT).
+/// @param proc_sharing Share mutex with other processes (PRIVATE, SHARED).
+/// @return 0 if succeeded, < 0 otherwise.
 int MutexGuardAttrInit( MTX_GRD* restrict p_mutex_guard ,
                         const int mutex_type            ,
                         const int priority              ,
@@ -248,7 +275,7 @@ int MutexGuardAttrInit( MTX_GRD* restrict p_mutex_guard ,
     int set_priority    = pthread_mutexattr_setprotocol(&p_mutex_guard->mutex_attr, priority);
     int set_proc_share  = pthread_mutexattr_setpshared(&p_mutex_guard->mutex_attr, proc_sharing);
 
-    if( (set_type < 0) || (set_priority < 0) || (set_proc_share < 0))
+    if( set_type | set_priority | set_proc_share )
     {
         mutex_guard_errno = MTX_GRD_ERR_ATTR_SET_FAILED;
         return -2;
@@ -257,6 +284,10 @@ int MutexGuardAttrInit( MTX_GRD* restrict p_mutex_guard ,
     return 0;
 }
 
+/// @brief Stores a new lock address.
+/// @param p_mutex_guard Pointer to mutex guard structure.
+/// @param address Target address to be stored.
+/// @return 0 if succeeded, < 0 otherwise.
 static int MutexGuardStoreNewAddress(MTX_GRD* restrict p_mutex_guard, void* address)
 {
     if(!p_mutex_guard)
@@ -276,6 +307,9 @@ static int MutexGuardStoreNewAddress(MTX_GRD* restrict p_mutex_guard, void* addr
     return -2;
 }
 
+/// @brief Removes latest lock address.
+/// @param p_mutex_guard Pointer to mutex guard structure.
+/// @return 0 if succeeded, < 0 otherwise.
 static int MutexGuardRemoveLatestAddress(MTX_GRD* restrict p_mutex_guard)
 {
     if(!p_mutex_guard)
@@ -295,6 +329,9 @@ static int MutexGuardRemoveLatestAddress(MTX_GRD* restrict p_mutex_guard)
     return -2;
 }
 
+/// @brief Returns timespec type struct to be used alongside timed locks.
+/// @param timeout_ns Target timeout value (in nanoseconds).
+/// @return Resulting timespec.
 static mtx_to_t MutexGuardGenTimespec(const uint64_t timeout_ns)
 {
     mtx_to_t lock_timeout;
@@ -314,6 +351,13 @@ static mtx_to_t MutexGuardGenTimespec(const uint64_t timeout_ns)
     return lock_timeout;
 }
 
+/// @brief Copies lock error to a provided buffer.
+/// @param p_mutex_guard Pointer to mutex guard structure.
+/// @param timeout_ns Target timeout value (if any, in nanoseconds).
+/// @param ret_lock Value returned by pthread mutex locking function.
+/// @param lock_error_string Buffer where the error is meant to eb copied to.
+/// @param lock_error_str_size Buffer size.
+/// @return 0 if succeeded, < 0 otherwise.
 static int MutexGuardCopyLockError( const MTX_GRD* restrict p_mutex_guard   ,
                                     const uint64_t timeout_ns               ,
                                     const int ret_lock                      ,
@@ -354,6 +398,12 @@ static int MutexGuardCopyLockError( const MTX_GRD* restrict p_mutex_guard   ,
     return 0;
 }
 
+/// @brief Gets lock error and copies it provided buffer.
+/// @param p_mutex_guard Pointer to mutex guard structure.
+/// @param timeout_ns Target timeout value (if any, in nanoseconds).
+/// @param lock_error_string Buffer where the error is meant to eb copied to.
+/// @param lock_error_str_size Buffer size.
+/// @return 0 if succeeded, < 0 otherwise.
 int MutexGuardGetLockError( const MTX_GRD* restrict p_mutex_guard   ,
                             const uint64_t timeout_ns               ,
                             char* lock_error_string                 ,
@@ -384,6 +434,14 @@ int MutexGuardGetLockError( const MTX_GRD* restrict p_mutex_guard   ,
     return 0;
 }
 
+/// @brief Stores lock error cause to a given buffer.
+/// @param p_mutex_guard_acq_location Pointer to mutex acquisition location struct.
+/// @param mutex_address Pointer to target mutex variable.
+/// @param timeout_ns Target timeout value (if any, in nanoseconds).
+/// @param ret_lock Value returned by pthread mutex locking function.
+/// @param lock_error_string Buffer where the error is meant to eb copied to.
+/// @param lock_error_str_size Buffer size.
+/// @return 0 if succeeded, < 0 otherwise.
 static int MutexGuardPrintLockErrorCause(   const MTX_GRD_ACQ_LOCATION* restrict p_mutex_guard_acq_location ,
                                             const pthread_mutex_t* restrict mutex_address                   ,
                                             const uint64_t timeout_ns                                       ,
@@ -426,6 +484,11 @@ static int MutexGuardPrintLockErrorCause(   const MTX_GRD_ACQ_LOCATION* restrict
     return 0;
 }
 
+/// @brief Prints lock address history to a given buffer.
+/// @param p_mutex_guard_acq_location Pointer to given mutex acquisition location.
+/// @param lock_error_string Buffer where the error is meant to eb copied to.
+/// @param lock_error_str_size Buffer size.
+/// @return 0 if succeeded, < 0 otherwise.
 static int MutexGuardPrintLockAddresses(const MTX_GRD_ACQ_LOCATION* p_mutex_guard_acq_location  ,
                                         char* lock_error_string                                 ,
                                         const size_t lock_error_str_size                        )
@@ -467,6 +530,11 @@ static int MutexGuardPrintLockAddresses(const MTX_GRD_ACQ_LOCATION* p_mutex_guar
     return 0;
 }
 
+/// @brief Directly prints mutex lock error to standard output.
+/// @param p_mutex_guard_acq_location Pointer to given mutex acquisition location.
+/// @param target_mutex_addr Pointer to target mutex variable.
+/// @param timeout_ns Target timeout value (if any, in nanoseconds).
+/// @param ret_lock Value returned by pthread mutex locking function.
 void MutexGuardPrintLockError(  const MTX_GRD_ACQ_LOCATION* restrict p_mutex_guard_acq_location ,
                                 const pthread_mutex_t* restrict target_mutex_addr               ,
                                 const uint64_t timeout_ns                                       ,
@@ -496,6 +564,9 @@ void MutexGuardPrintLockError(  const MTX_GRD_ACQ_LOCATION* restrict p_mutex_gua
     printf("%s", lock_error_string);
 }
 
+/// @brief Directly prints mutex lock/unlock backtrace to standard output.
+/// @param p_locked_mutex Address of mutex to be locked/unlocked.
+/// @param is_lock true for locking operations, false for unlocking.
 static void MutexGuardShowBacktrace(const pthread_mutex_t* restrict p_locked_mutex, const bool is_lock)
 {
     if(p_locked_mutex == &acq_info_lock.mutex)
@@ -584,6 +655,12 @@ static void MutexGuardShowBacktrace(const pthread_mutex_t* restrict p_locked_mut
     }
 }
 
+/// @brief Locks target mutex.
+/// @param p_mutex_guard Pointer to mutex guard structure.
+/// @param address Address in which the current mutex is being tried to be locked.
+/// @param timeout_ns Target timeout value (if any, in nanoseconds).
+/// @param lock_type Lock type (TR_LOCK, LOCK, TIMED_LOCK, PERIODIC_TIMED_LOCK).
+/// @return 0 if succeeded, != 0 otherwise.
 int MutexGuardLock(MTX_GRD* p_mutex_guard, void* restrict address, const uint64_t timeout_ns, const int lock_type)
 {
     if(!p_mutex_guard)
@@ -683,6 +760,8 @@ int MutexGuardLock(MTX_GRD* p_mutex_guard, void* restrict address, const uint64_
     return ret_lock;
 }
 
+/// @brief Gets base address of the executable in which a mutex lock error has happened.
+/// @return 0 if succeeded, < 0 otherwise.
 static size_t MutexGuardGetExecutableBaseddress(void)
 {
     FILE *maps = fopen(MTX_GRD_PROC_MAPS_PATH, "r");
@@ -713,6 +792,10 @@ static size_t MutexGuardGetExecutableBaseddress(void)
     return start;
 }
 
+/// @brief Gets mutex lock acquisition details from the address in which a mutex was meant to be stored.
+/// @param addr Mutex lock address.
+/// @param detail Pointer to lock acquisition detail struct.
+/// @return 0 if succeeded, < 0 otherwise.
 static int MutexGuardGetLockDetailFromAddr(const void* restrict addr, MTX_GRD_ACQ_LOCATION_DETAIL* restrict detail)
 {
     char cmd[MTX_GRD_ADDR2LINE_CMD_FORMAT_MAX_LEN + 1] = {0};
@@ -774,6 +857,13 @@ static int MutexGuardGetLockDetailFromAddr(const void* restrict addr, MTX_GRD_AC
     return 0;
 }
 
+/// @brief Prints file and line to a buffer given an address.
+/// @param addr Target address to be detailed.
+/// @param output_buffer Output buffer.
+/// @param address_index Address index within mutex guard.
+/// @param detail Pointer to mutex acquisition detail struct. 
+/// @param lock_error_str_size Output buffer size.
+/// @return 0 if succeeded, < 0 otherwise.
 static int MutexGuardPrintFileAndLineFromAddr(  const void* restrict addr                   ,
                                                 char* output_buffer                         ,
                                                 const unsigned int address_index            ,
@@ -807,11 +897,16 @@ static int MutexGuardPrintFileAndLineFromAddr(  const void* restrict addr       
     return 0;
 }
 
+/// @brief Returns address within the program of line in which the current function was called. Meant to be used in macros.
+/// @return Current function calling address.
 C_MUTEX_GUARD_NINLINE void* MutexGuardGetFuncRetAddr(void)
 {
     return __builtin_return_address(0); 
 }
 
+/// @brief Unlocks target mutex.
+/// @param p_mtx_grd Pointer to mutex guard structure.
+/// @return 0 if succeeded, != 0 otherwise.
 int MutexGuardUnlock(MTX_GRD* restrict p_mtx_grd)
 {
     if(!p_mtx_grd)
@@ -854,6 +949,8 @@ int MutexGuardUnlock(MTX_GRD* restrict p_mtx_grd)
     return ret_unlock;
 }
 
+/// @brief Cleanup function to release a mutex (meant to be used alongside scoped mutex lock macros).
+/// @param ptr Pointer to mutex guard structure. 
 void MutexGuardReleaseMutexCleanup(void* ptr)
 {
     if(!ptr || !(*(MTX_GRD**)ptr))
@@ -866,6 +963,8 @@ void MutexGuardReleaseMutexCleanup(void* ptr)
     *(MTX_GRD**)ptr = NULL;
 }
 
+/// @brief Cleanup function to destroy a mutex attribute (meant to be used alongside scoped attribute init macros).
+/// @param ptr Pointer to mutex attribute containing mutex guard structure. 
 void MutexGuardDestroyAttrCleanup(void* ptr)
 {
     if(!ptr || !(*(MTX_GRD**)ptr))
@@ -877,7 +976,9 @@ void MutexGuardDestroyAttrCleanup(void* ptr)
     MutexGuardAttrDestroy(*(MTX_GRD**)ptr);
 }
 
- void MutexGuardDestroyMutexCleanup(void* ptr)
+/// @brief Cleanup function to destroy a mutex (meant to be used alongside scoped mutex init macros)
+/// @param ptr Pointer to mutex guard structure.
+void MutexGuardDestroyMutexCleanup(void* ptr)
 {
     if(!ptr || !(*(MTX_GRD**)ptr))
     {
