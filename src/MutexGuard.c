@@ -81,6 +81,7 @@ typedef enum
     MTX_GRD_ERR_INVALID_VERBOSITY_LEVEL             = 1000  ,
     MTX_GRD_ERR_NULL_MTX_GRD                                ,
     MTX_GRD_ERR_NULL_MTX_GRD_ACQ                            ,
+    MTX_GRD_ERR_INIT_FAILED                                 ,
     MTX_GRD_ERR_NULL_TARGET_STRING                          ,
     MTX_GRD_ERR_NO_STORED_LOCK_ADDRESSES                    ,
     MTX_GRD_ERR_ATTR_SET_FAILED                             ,
@@ -88,6 +89,7 @@ typedef enum
     MTX_GRD_ERR_INVALID_LOCK_TYPE                           ,
     MTX_GRD_ERR_LOCK_ERROR                                  ,
     MTX_GRD_ERR_STD_ERROR_CODE                              ,
+    MTX_GRD_ERR_INVALID_OWNER_TID                           ,
     MTX_GRD_ERR_COULD_NOT_FIND_PROCESS                      ,
     MTX_GRD_ERR_COULD_NOT_CLOSE_PROC_FILE                   ,
     MTX_GRD_ERR_COULD_NOT_FIND_EXE_PATH                     ,
@@ -160,6 +162,7 @@ static const char* error_str_table[] =
     "Invalid verbosity level"                                               ,
     "MTX_GRD null pointer"                                                  ,
     "MTX_GRD_ACQ_LOCATION null pointer"                                     ,
+    "Mutex Guard initialization failed"                                     ,
     "Target string to write is null"                                        ,
     "No stored lock addresses have been found"                              ,
     "Attribute setting failed"                                              ,
@@ -167,6 +170,7 @@ static const char* error_str_table[] =
     "Invalid lock type provided"                                            ,
     "Could not lock target mutex (use MutexGuardGetLockError for more info)",
     "Standard error code (use strerror for more info)"                      ,
+    "Owner thread's TID does not match current one"                         ,
     "Could not find current process information"                            ,
     "Could not close current process information file"                      ,
     "Could not close current executable\'s file path"                       ,
@@ -284,6 +288,28 @@ int MutexGuardAttrInit( MTX_GRD* restrict p_mutex_guard ,
     return 0;
 }
 
+/// @brief Initializes mutex.
+/// @param p_mutex_guard Pointer to mutex containing mutex guard structure.
+/// @return 0 if succeeded, != 0 otherwise.
+int MutexGuardInit(MTX_GRD* restrict p_mutex_guard)
+{
+    if(!p_mutex_guard)
+    {
+        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD;
+        return -1;
+    }
+
+    int try_init = pthread_mutex_init(&p_mutex_guard->mutex, &p_mutex_guard->mutex_attr);
+
+    if(try_init)
+    {
+        mutex_guard_errno = MTX_GRD_ERR_INIT_FAILED;
+        return -2;
+    }
+
+    return 0;
+}
+
 /// @brief Stores a new lock address.
 /// @param p_mutex_guard Pointer to mutex guard structure.
 /// @param address Target address to be stored.
@@ -299,8 +325,10 @@ static int MutexGuardStoreNewAddress(MTX_GRD* restrict p_mutex_guard, void* addr
     for(int address_index = 0; address_index < __MTX_GRD_ADDR_NUM__; address_index++)
     {
         if(!p_mutex_guard->mutex_acq_location.addresses[address_index])
+        {
             p_mutex_guard->mutex_acq_location.addresses[address_index] = address;
-        return 0;
+            return 0;
+        }
     }
     
     mutex_guard_errno = MTX_GRD_ERR_NO_ADDR_SPACE_AVAILABLE;
@@ -755,12 +783,14 @@ int MutexGuardLock(MTX_GRD* p_mutex_guard, void* restrict address, const uint64_
 
     mutex_guard_lock_error_code = 0;
 
-    int store_addr = MutexGuardStoreNewAddress(p_mutex_guard, address);
-    if(store_addr < 0)
-        ret_lock = store_addr;
+    MutexGuardStoreNewAddress(p_mutex_guard, address);
 
     p_mutex_guard->mutex_acq_location.thread_id = pthread_self();
+
     ++p_mutex_guard->lock_counter;
+    
+    if(p_mutex_guard->lock_counter > __MTX_GRD_ADDR_NUM__)
+        mutex_guard_errno = MTX_GRD_ERR_OUT_OF_ADDR_COUNTER_BOUNDARIES;
 
     if(verbosity_level & MTX_GRD_VERBOSITY_BT)
         MutexGuardShowBacktrace(&p_mutex_guard->mutex, true);
@@ -923,6 +953,12 @@ int MutexGuardUnlock(MTX_GRD* restrict p_mtx_grd)
         return -1;
     }
 
+    if(pthread_self() != p_mtx_grd->mutex_acq_location.thread_id)
+    {
+        mutex_guard_errno = MTX_GRD_ERR_INVALID_OWNER_TID;
+        return -2;
+    }
+
     int ret_unlock = pthread_mutex_unlock(&p_mtx_grd->mutex);
     
     if(ret_unlock)
@@ -935,10 +971,7 @@ int MutexGuardUnlock(MTX_GRD* restrict p_mtx_grd)
 
     mutex_guard_lock_error_code = 0;
 
-    int remove_addr = MutexGuardRemoveLatestAddress(p_mtx_grd);
-
-    if(remove_addr < 0)
-        return remove_addr;
+    MutexGuardRemoveLatestAddress(p_mtx_grd);
 
     if(p_mtx_grd->lock_counter > 0)
         --p_mtx_grd->lock_counter;
@@ -993,6 +1026,9 @@ void MutexGuardDestroyMutexCleanup(void* ptr)
         mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD;
         return;
     }
+
+    for(int i = 0; i < (*(MTX_GRD**)ptr)->lock_counter; i++)
+        MutexGuardUnlock(*(MTX_GRD**)ptr);
 
     MutexGuardDestroy(*(MTX_GRD**)ptr);
 }
