@@ -1,6 +1,6 @@
 /********** Include statements ***********/
 
-#include "TestMacros.h"
+#include "TestCommonDefs.h"
 #include "TestReturnValues.h"
 
 /*****************************************/
@@ -67,6 +67,7 @@ static void TestGetLockError()
     CU_ASSERT_EQUAL(MutexGuardGetLockError(NULL, 0, NULL, 0), -1);
     
     MTX_GRD_CREATE(test_mtx_grd);
+    MTX_GRD_INIT_SC(&test_mtx_grd, dummy);
     
     CU_ASSERT_EQUAL(MutexGuardGetLockError(&test_mtx_grd, 0, NULL, 0), -2);
     
@@ -81,6 +82,7 @@ static void TestLock()
     CU_ASSERT_EQUAL(MutexGuardLock(NULL, NULL, 0, 0), -1);
     
     MTX_GRD_CREATE(test_mtx_grd);
+    MTX_GRD_INIT_SC(&test_mtx_grd, dummy);
 
     CU_ASSERT_EQUAL(MutexGuardLock(&test_mtx_grd, NULL, 0, MTX_GRD_LOCK_TYPE_MIN - 1), -2);
     CU_ASSERT_EQUAL(MutexGuardLock(&test_mtx_grd, NULL, 0, MTX_GRD_LOCK_TYPE_MAX + 1), -2);
@@ -94,6 +96,7 @@ static void TestLockAddr()
     CU_ASSERT_PTR_NULL(MutexGuardLockAddr(NULL, NULL, 0, 0));
     
     MTX_GRD_CREATE(test_mtx_grd);
+    MTX_GRD_INIT_SC(&test_mtx_grd, dummy);
 
     CU_ASSERT_PTR_NULL(MutexGuardLockAddr(&test_mtx_grd, NULL, 0, MTX_GRD_LOCK_TYPE_MIN - 1));
     CU_ASSERT_PTR_NULL(MutexGuardLockAddr(&test_mtx_grd, NULL, 0, MTX_GRD_LOCK_TYPE_MAX + 1));
@@ -102,23 +105,38 @@ static void TestLockAddr()
     CU_ASSERT_PTR_NULL(MutexGuardLockAddr(&test_mtx_grd, NULL, 0, MTX_GRD_LOCK_TYPE_TRY));
 }
 
+static void* TestUnlockHelper(void* arg)
+{
+    TEST_UNLOCK_HELPER_STRUCT* test_st = (TEST_UNLOCK_HELPER_STRUCT*)arg;
+    test_st->test_value = MTX_GRD_UNLOCK(&test_st->mtx_grd);
+
+    return NULL;
+}
+
 static void TestUnlock()
 {
     CU_ASSERT_EQUAL(MutexGuardUnlock(NULL), -1);
 
+    {
+        TEST_UNLOCK_HELPER_STRUCT test_unlock_helper_struct = {0};
+        MTX_GRD_INIT_SC(&test_unlock_helper_struct.mtx_grd, dummy_unlock_helper);
+        MTX_GRD_LOCK_SC(&test_unlock_helper_struct.mtx_grd, test_lock_dummy);
+        pthread_t thread_0;
+        pthread_create(&thread_0, NULL, TestUnlockHelper, &test_unlock_helper_struct);
+
+        pthread_join(thread_0, NULL);
+
+        CU_ASSERT_EQUAL(test_unlock_helper_struct.test_value, -2);
+    }
+
     MTX_GRD_CREATE(test_mtx_grd);
-    MTX_GRD_LOCK_SC(&test_mtx_grd, dummy_0);
-
-    test_mtx_grd.mutex_acq_location.addresses[0] = NULL;
-
-    CU_ASSERT_EQUAL(MutexGuardUnlock(&test_mtx_grd), -2);
-
-    MTX_GRD_LOCK_SC(&test_mtx_grd, dummy_1);
+    MTX_GRD_INIT_SC(&test_mtx_grd, dummy_mtx);
+    MTX_GRD_LOCK_SC(&test_mtx_grd, dummy_lock_1);
 
     CU_ASSERT_EQUAL(MutexGuardUnlock(&test_mtx_grd), 0);
 }
 
-int GetReturnValueTestsSuite()
+int CreateReturnValueTestsSuite()
 {
     CU_pSuite pReturnValueTestsSuite;
 

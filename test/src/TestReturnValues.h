@@ -8,6 +8,10 @@
 
 /*****************************************/
 
-int GetReturnValueTestsSuite();
+/******** Test adding functions **********/
+
+int CreateReturnValueTestsSuite();
+
+/*****************************************/
 
 #endif
