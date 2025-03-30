@@ -1,5 +1,11 @@
-#ifndef TEST_MACROS_H
-#define TEST_MACROS_H
+#ifndef TEST_COMMON_DEFS_H
+#define TEST_COMMON_DEFS_H
+
+/********** Include statements ***********/
+
+#include "MutexGuard_api.h"
+
+/*****************************************/
 
 /**************** Macros *****************/
 
@@ -22,6 +28,16 @@ do                                                  \
         return CU_get_error();                      \
     }                                               \
 } while(0);
+
+/*****************************************/
+
+/******** Common type definitions ********/
+
+typedef struct __attribute__((aligned(sizeof(size_t))))
+{
+    MTX_GRD mtx_grd;
+    int test_value;
+} TEST_UNLOCK_HELPER_STRUCT;
 
 /*****************************************/
 
