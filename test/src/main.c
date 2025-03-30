@@ -3,19 +3,19 @@
 #include <CUnit/Basic.h>
 #include "MutexGuard_api.h"
 #include "TestReturnValues.h"
+#include "TestErrorCodes.h"
 
 /*****************************************/
 
-/*********** Test definitions ************/
-
-
+/*************** Run Tests ***************/
 
 int main()
 {
     if(CU_initialize_registry() != CUE_SUCCESS)
         return CU_get_error();
     
-    GetReturnValueTestsSuite();
+    CreateReturnValueTestsSuite();
+    CreateErrorCodeTestsSuite();
     
     CU_basic_run_tests();
     CU_cleanup_registry();
