@@ -36,6 +36,7 @@ do                                                  \
 typedef struct __attribute__((aligned(sizeof(size_t))))
 {
     MTX_GRD mtx_grd;
+    int (*fnMutexGuard)(MTX_GRD* p_mtx_grd);
     int test_value;
 } TEST_UNLOCK_HELPER_STRUCT;
 
