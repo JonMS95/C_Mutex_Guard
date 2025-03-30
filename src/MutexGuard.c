@@ -1004,6 +1004,55 @@ void MutexGuardReleaseMutexCleanup(void* ptr)
     *(MTX_GRD**)ptr = NULL;
 }
 
+/// @brief Destroys mutex attribute within given mutex guard.
+/// @param p_mtx_grd Pointer to mutex guard structure.
+/// @return 0 if succeeded, > 0 otherwise.
+int MutexGuardAttrDestroy(MTX_GRD* restrict p_mtx_grd)
+{
+    if(!p_mtx_grd)
+    {
+        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD;
+        return -1;
+    }
+    
+    int mutex_attr_destroy = pthread_mutexattr_destroy(&p_mtx_grd->mutex_attr);
+    
+    if(mutex_attr_destroy)
+        mutex_guard_errno = MTX_GRD_ERR_STD_ERROR_CODE;
+    
+    return mutex_attr_destroy;
+}
+
+/// @brief Destroys mutex within given mutex guard.
+/// @param p_mtx_grd Pointer to mutex guard structure.
+/// @return 0 if succeeded, > 0 otherwise.
+int MutexGuardDestroy(MTX_GRD* restrict p_mtx_grd)
+{
+    if(!p_mtx_grd)
+    {
+        mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD;
+        return -1;
+    }
+
+    int original_lock_counter = p_mtx_grd->lock_counter;
+
+    int ret_unlock = 0;
+    for(int i = 0; i < original_lock_counter; i++)
+    {
+        ret_unlock = MutexGuardUnlock(p_mtx_grd);
+        
+        if(ret_unlock < 0)
+            return -2;
+    }
+    
+    int mutex_destroy = pthread_mutex_destroy(&p_mtx_grd->mutex);
+    
+    if(mutex_destroy)
+        mutex_guard_errno = MTX_GRD_ERR_STD_ERROR_CODE;
+    
+    return mutex_destroy;
+}
+
 /// @brief Cleanup function to destroy a mutex attribute (meant to be used alongside scoped attribute init macros).
 /// @param ptr Pointer to mutex attribute containing mutex guard structure. 
 void MutexGuardDestroyAttrCleanup(void* ptr)
@@ -1026,9 +1075,6 @@ void MutexGuardDestroyMutexCleanup(void* ptr)
         mutex_guard_errno = MTX_GRD_ERR_NULL_MTX_GRD;
         return;
     }
-
-    for(int i = 0; i < (*(MTX_GRD**)ptr)->lock_counter; i++)
-        MutexGuardUnlock(*(MTX_GRD**)ptr);
 
     MutexGuardDestroy(*(MTX_GRD**)ptr);
 }

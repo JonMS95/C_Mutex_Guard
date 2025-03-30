@@ -244,16 +244,12 @@ C_MUTEX_GUARD_API int MutexGuardUnlock(MTX_GRD* restrict p_mtx_grd);
 /// @brief Destroys mutex attribute within given mutex guard.
 /// @param p_mtx_grd Pointer to mutex guard structure.
 /// @return 0 if succeeded, > 0 otherwise.
-C_MUTEX_GUARD_API C_MUTEX_GUARD_AINLINE int MutexGuardAttrDestroy(MTX_GRD* restrict p_mtx_grd) {
-    return pthread_mutexattr_destroy(&p_mtx_grd->mutex_attr);
-}
+C_MUTEX_GUARD_API int MutexGuardAttrDestroy(MTX_GRD* restrict p_mtx_grd);
 
 /// @brief Destroys mutex within given mutex guard.
 /// @param p_mtx_grd Pointer to mutex guard structure.
 /// @return 0 if succeeded, > 0 otherwise.
-C_MUTEX_GUARD_API C_MUTEX_GUARD_AINLINE int MutexGuardDestroy(MTX_GRD* restrict p_mtx_grd) {
-    return pthread_mutex_destroy(&p_mtx_grd->mutex);
-}
+C_MUTEX_GUARD_API int MutexGuardDestroy(MTX_GRD* restrict p_mtx_grd);
 
 /// @brief Cleanup function to release a mutex (meant to be used alongside scoped mutex lock macros).
 /// @param ptr Pointer to mutex guard structure. 
