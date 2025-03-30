@@ -105,10 +105,10 @@ static void TestLockAddr()
     CU_ASSERT_PTR_NULL(MutexGuardLockAddr(&test_mtx_grd, NULL, 0, MTX_GRD_LOCK_TYPE_TRY));
 }
 
-static void* TestUnlockHelper(void* arg)
+static void* TestEvalHelper(void* arg)
 {
     TEST_UNLOCK_HELPER_STRUCT* test_st = (TEST_UNLOCK_HELPER_STRUCT*)arg;
-    test_st->test_value = MTX_GRD_UNLOCK(&test_st->mtx_grd);
+    test_st->test_value = test_st->fnMutexGuard(&test_st->mtx_grd);
 
     return NULL;
 }
@@ -118,11 +118,11 @@ static void TestUnlock()
     CU_ASSERT_EQUAL(MutexGuardUnlock(NULL), -1);
 
     {
-        TEST_UNLOCK_HELPER_STRUCT test_unlock_helper_struct = {0};
+        TEST_UNLOCK_HELPER_STRUCT test_unlock_helper_struct = { .fnMutexGuard = &MutexGuardUnlock };
         MTX_GRD_INIT_SC(&test_unlock_helper_struct.mtx_grd, dummy_unlock_helper);
         MTX_GRD_LOCK_SC(&test_unlock_helper_struct.mtx_grd, test_lock_dummy);
         pthread_t thread_0;
-        pthread_create(&thread_0, NULL, TestUnlockHelper, &test_unlock_helper_struct);
+        pthread_create(&thread_0, NULL, TestEvalHelper, &test_unlock_helper_struct);
 
         pthread_join(thread_0, NULL);
 
@@ -134,6 +134,39 @@ static void TestUnlock()
     MTX_GRD_LOCK_SC(&test_mtx_grd, dummy_lock_1);
 
     CU_ASSERT_EQUAL(MutexGuardUnlock(&test_mtx_grd), 0);
+}
+
+static void TestAttrDestroy()
+{
+    CU_ASSERT_EQUAL(MutexGuardAttrDestroy(NULL), -1);
+
+    MTX_GRD_CREATE(test_mtx_grd);
+    MTX_GRD_ATTR_INIT(&test_mtx_grd, 0, 0, 0);
+    MTX_GRD_INIT(&test_mtx_grd);
+
+    CU_ASSERT_EQUAL(MutexGuardAttrDestroy(&test_mtx_grd), 0);
+}
+
+static void TestDestroy()
+{
+    CU_ASSERT_EQUAL(MutexGuardDestroy(NULL), -1);
+
+    {
+        TEST_UNLOCK_HELPER_STRUCT test_unlock_helper_struct = { .fnMutexGuard = &MutexGuardDestroy };
+        MTX_GRD_INIT_SC(&test_unlock_helper_struct.mtx_grd, dummy_unlock_helper);
+        MTX_GRD_LOCK_SC(&test_unlock_helper_struct.mtx_grd, test_lock_dummy);
+        pthread_t thread_0;
+        pthread_create(&thread_0, NULL, TestEvalHelper, &test_unlock_helper_struct);
+
+        pthread_join(thread_0, NULL);
+
+        CU_ASSERT_EQUAL(test_unlock_helper_struct.test_value, -2);
+    }
+
+    MTX_GRD_CREATE(test_mtx_grd);
+    MTX_GRD_INIT(&test_mtx_grd);
+
+    CU_ASSERT_EQUAL(MutexGuardDestroy(&test_mtx_grd), 0);
 }
 
 int CreateReturnValueTestsSuite()
@@ -151,6 +184,8 @@ int CreateReturnValueTestsSuite()
     ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestLock);
     ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestLockAddr);
     ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestUnlock);
+    ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestAttrDestroy);
+    ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestDestroy);
 
     return 0;
 }

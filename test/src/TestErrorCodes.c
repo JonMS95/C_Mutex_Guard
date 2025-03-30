@@ -222,10 +222,10 @@ static void TestLockAddr()
     }
 }
 
-static void* TestUnlockHelper(void* arg)
+static void* TestEvalHelper(void* arg)
 {
     TEST_UNLOCK_HELPER_STRUCT* test_st = (TEST_UNLOCK_HELPER_STRUCT*)arg;
-    MTX_GRD_UNLOCK(&test_st->mtx_grd);
+    test_st->fnMutexGuard(&test_st->mtx_grd);
     test_st->test_value = MutexGuardGetErrorCode();
 
     return NULL;
@@ -249,11 +249,11 @@ static void TestUnlock()
     }
     
     {
-        TEST_UNLOCK_HELPER_STRUCT test_unlock_helper_struct = {0};
+        TEST_UNLOCK_HELPER_STRUCT test_unlock_helper_struct = { .fnMutexGuard = &MutexGuardUnlock };
         MTX_GRD_INIT_SC(&test_unlock_helper_struct.mtx_grd, dummy_unlock_helper);
         MTX_GRD_LOCK(&test_unlock_helper_struct.mtx_grd);
         pthread_t thread_0;
-        pthread_create(&thread_0, NULL, TestUnlockHelper, &test_unlock_helper_struct);
+        pthread_create(&thread_0, NULL, TestEvalHelper, &test_unlock_helper_struct);
 
         pthread_join(thread_0, NULL);
         MTX_GRD_UNLOCK(&test_unlock_helper_struct.mtx_grd);
@@ -285,6 +285,62 @@ static void TestUnlock()
     }
 }
 
+static void TestAttrDestroy()
+{
+    CU_ASSERT_EQUAL(MutexGuardAttrDestroy(NULL), -1);
+
+    MTX_GRD_CREATE(test_mtx_grd);
+    MTX_GRD_ATTR_INIT(&test_mtx_grd, 0, 0, 0);
+    MTX_GRD_INIT(&test_mtx_grd);
+
+    CU_ASSERT_EQUAL(MutexGuardAttrDestroy(&test_mtx_grd), 0);
+}
+
+static void TestDestroy()
+{
+    MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_SILENT);
+
+    MutexGuardDestroy(NULL);
+
+    CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1001);
+    CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "MTX_GRD null pointer");
+    
+    {
+        TEST_UNLOCK_HELPER_STRUCT test_unlock_helper_struct = { .fnMutexGuard = &MutexGuardDestroy };
+        MTX_GRD_INIT_SC(&test_unlock_helper_struct.mtx_grd, dummy_unlock_helper);
+        MTX_GRD_LOCK(&test_unlock_helper_struct.mtx_grd);
+        pthread_t thread_0;
+        pthread_create(&thread_0, NULL, TestEvalHelper, &test_unlock_helper_struct);
+
+        pthread_join(thread_0, NULL);
+
+        CU_ASSERT_EQUAL(test_unlock_helper_struct.test_value, 1011);
+        CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(test_unlock_helper_struct.test_value), "Owner thread's TID does not match current one");
+    }
+
+    {
+        MTX_GRD_CREATE(test_mtx_grd_1);
+        MTX_GRD_INIT_SC(&test_mtx_grd_1, dummy_1);
+        MTX_GRD_LOCK_SC(&test_mtx_grd_1, dummy_lock_1);
+        test_mtx_grd_1.mutex_acq_location.addresses[0] = NULL;
+        MTX_GRD_DESTROY(&test_mtx_grd_1);
+
+        CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1007);
+        CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "No space available for more addresses");
+    }
+
+    {
+        MTX_GRD_CREATE(test_mtx_grd_2);
+        MTX_GRD_INIT_SC(&test_mtx_grd_2, dummy_2);
+        MTX_GRD_LOCK_SC(&test_mtx_grd_2, dummy_lock_2);
+        test_mtx_grd_2.lock_counter = 0;
+        MTX_GRD_DESTROY(&test_mtx_grd_2);
+
+        CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1010);
+        CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Standard error code (use strerror for more info)");
+    }
+}
+
 int CreateErrorCodeTestsSuite()
 {
     CU_pSuite pErrorCodeTestsSuite;
@@ -300,6 +356,8 @@ int CreateErrorCodeTestsSuite()
     ADD_TEST_2_SUITE(pErrorCodeTestsSuite, TestLock);
     ADD_TEST_2_SUITE(pErrorCodeTestsSuite, TestLockAddr);
     ADD_TEST_2_SUITE(pErrorCodeTestsSuite, TestUnlock);
+    ADD_TEST_2_SUITE(pErrorCodeTestsSuite, TestAttrDestroy);
+    ADD_TEST_2_SUITE(pErrorCodeTestsSuite, TestDestroy);
 
     return 0;
 }
