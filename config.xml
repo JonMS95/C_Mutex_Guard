@@ -37,10 +37,12 @@
             <Posix_Threads
                 type="system"
                 lib_name="pthread"
+                install_cmd="sudo apt install libc6-dev"
             />
             <CUnit_Tests
                 type="system"
                 lib_name="cunit"
+                install_cmd="sudo apt install libcunit1 libcunit1-dev"
             />
             <C_Mutex_Guard
                 version_major="1"
