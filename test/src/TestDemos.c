@@ -133,7 +133,7 @@ static void TestDemoSelfDeadlock()
     // If any error happens, then copy it to the error string so as to clarify what was the reason.
     if(MTX_GRD_LOCK(&mtx_grd_0))
     {
-        printf("Could not lock mutex at <0x%lx>. Error: %s\r\n", (unsigned long)(&mtx_grd_0.mutex), MutexGuardGetErrorString(MutexGuardGetErrorCode()));
+        printf("Could not lock mutex at <0x%lx>. Error: %s.\r\n", (unsigned long)(&mtx_grd_0.mutex), MutexGuardGetErrorString(MutexGuardGetErrorCode()));
         return;
     }
 
@@ -141,7 +141,7 @@ static void TestDemoSelfDeadlock()
     if(MTX_GRD_TRY_LOCK(&mtx_grd_0))
     {
         MutexGuardGetLockError(&mtx_grd_0, 0, error_msg_str, sizeof(error_msg_str));
-        printf("Could not lock mutex at <0x%lx>. Error: %s\r\n%s\r\n", (unsigned long)(&mtx_grd_0.mutex), MutexGuardGetErrorString(MutexGuardGetErrorCode()), error_msg_str);
+        printf("Could not lock mutex at <0x%lx>. Error: %s.\r\n%s\r\n", (unsigned long)(&mtx_grd_0.mutex), MutexGuardGetErrorString(MutexGuardGetErrorCode()), error_msg_str);
     }
     
     MTX_GRD_UNLOCK(&mtx_grd_0);
