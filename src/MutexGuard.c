@@ -462,8 +462,7 @@ int MutexGuardGetLockError( const MTX_GRD* restrict p_mutex_guard   ,
         strncat(lock_error_string                                   ,
                 MutexGuardGetErrorString(MutexGuardGetErrorCode())  ,
                 (lock_error_str_size - strlen(lock_error_string))   );
-                
-
+        
         return -3;
     }
     
@@ -543,13 +542,16 @@ static int MutexGuardPrintLockAddresses(const MTX_GRD_ACQ_LOCATION* p_mutex_guar
 
     MTX_GRD_ACQ_LOCATION_DETAIL detail = {0};
 
+    if(!p_mutex_guard_acq_location->addresses[0])
+    {
+        mutex_guard_errno = MTX_GRD_ERR_NO_STORED_LOCK_ADDRESSES;
+        return -3;
+    }
+
     for(unsigned int adress_index = 0; adress_index < __MTX_GRD_ADDR_NUM__; adress_index++)
     {
         if(!p_mutex_guard_acq_location->addresses[adress_index])
-        {
-            mutex_guard_errno = MTX_GRD_ERR_NO_STORED_LOCK_ADDRESSES;
-            return -3;
-        }
+            break;
         
         MutexGuardPrintFileAndLineFromAddr( p_mutex_guard_acq_location->addresses[adress_index] ,
                                             lock_error_string                                   ,
