@@ -14,6 +14,7 @@
 
 #define TEST_DEADLOCK_DEMO_HEADER       "\r\n********\r\nDEADLOCK\r\n********\r\n"
 #define TEST_SELF_DEADLOCK_DEMO_HEADER  "\r\n*************\r\nSELF-DEADLOCK\r\n*************\r\n"
+#define TEST_SCOPED_LIFETIME_MUTEX      "\r\n*********************\r\nSCOPED LIFETIME MUTEX\r\n*********************\r\n"
 
 #define TEST_ERROR_MSG_LEN  1000
 
@@ -39,6 +40,10 @@ static void TestDemoSelfDeadlock();
 
 /********** Function definitions *********/
 
+
+/// @brief A helper function meant to be used alongside TestDemoDeadlock.
+/// @param arg A MTX_GRD_TEST_PAIR struct instance containing pointers to a couple of MTX_GRD pointers.
+/// @return NULL, simply to comply with thread routine standards.
 static void* testMutexGuardDeadlockRoutine(void* arg)
 {
     // Set the routine-executing thread as cancellable. 
@@ -60,6 +65,7 @@ static void* testMutexGuardDeadlockRoutine(void* arg)
     return NULL;
 }
 
+/// @brief Intentionally causes a deadlock between two threads, which try to lock two mutexes in different order each time.
 static void TestDemoDeadlock()
 {
     printf("%s\r\n", TEST_DEADLOCK_DEMO_HEADER);
@@ -110,12 +116,10 @@ static void TestDemoDeadlock()
     MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_SILENT);
 }
 
+/// @brief A function causing a self-deadlock caused by a single thread trying to lock a non-recursive MTX_GRD twice in a row.
 static void TestDemoSelfDeadlock()
 {
     printf("%s\r\n", TEST_SELF_DEADLOCK_DEMO_HEADER);
-
-    // Create an error string for those potential messages to be stored.
-    char error_msg_str[TEST_ERROR_MSG_LEN] = {0};
 
     // Ensure no error is automatically shown this time. Instead, it's going to be retrieved by using proper functions then printed.
     MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_SILENT);
@@ -133,24 +137,46 @@ static void TestDemoSelfDeadlock()
     // If any error happens, then copy it to the error string so as to clarify what was the reason.
     if(MTX_GRD_LOCK(&mtx_grd_0))
     {
-        printf("Could not lock mutex at <0x%lx>. Error: %s.\r\n", (unsigned long)(&mtx_grd_0.mutex), MutexGuardGetErrorString(MutexGuardGetErrorCode()));
+        printf("%s\r\n", MTX_GRD_GET_LAST_ERR_STR);
         return;
     }
 
     // If no error happened, go ahead and try to lock it again (it won't be possible since the mutex has been initialized as non-recursive).
     if(MTX_GRD_TRY_LOCK(&mtx_grd_0))
-    {
-        MutexGuardGetLockError(&mtx_grd_0, 0, error_msg_str, sizeof(error_msg_str));
-        printf("Could not lock mutex at <0x%lx>. Error: %s.\r\n%s\r\n", (unsigned long)(&mtx_grd_0.mutex), MutexGuardGetErrorString(MutexGuardGetErrorCode()), error_msg_str);
-    }
+        printf("%s\r\n", MTX_GRD_GET_LAST_ERR_STR);
     
     MTX_GRD_UNLOCK(&mtx_grd_0);
+
+    // No error should occur after locking the mutex priorly declared beyond this point.
+    MTX_GRD_LOCK_SC(&mtx_grd_0, p_dummy_lock_0);
+    if(!p_dummy_lock_0)
+        printf("%s\r\n", MTX_GRD_GET_LAST_ERR_STR);
+}
+
+/// @brief Creates a scoped MTX_GRD just to test that the mutex is automatically unlocked if necessary. 
+static void TestScopeLifetimeMutex(void)
+{
+    printf("%s\r\n", TEST_SCOPED_LIFETIME_MUTEX);
+
+    MTX_GRD_CREATE(mtx_grd);
+
+    {
+        MTX_GRD_ATTR_INIT_SC(&mtx_grd, PTHREAD_MUTEX_RECURSIVE_NP, PTHREAD_PRIO_NONE, PTHREAD_PROCESS_PRIVATE, p_mtx_grd_attr);
+        MTX_GRD_INIT_SC(&mtx_grd, p_mtx_grd);
+
+        for(int lock_idx = 0; lock_idx < __MTX_GRD_ADDR_NUM__; lock_idx++)
+            MTX_GRD_TRY_LOCK(p_mtx_grd);
+    }
+
+    if(MTX_GRD_UNLOCK(&mtx_grd) < 0)
+        printf("%s\r\n", MTX_GRD_GET_LAST_ERR_STR);
 }
 
 void TestDemo()
 {
     TestDemoDeadlock();
     TestDemoSelfDeadlock();
+    TestScopeLifetimeMutex();
 }
 
 /*****************************************/
