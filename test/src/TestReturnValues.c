@@ -18,6 +18,19 @@ static void TestSetPrintStatus()
     CU_ASSERT_EQUAL(MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_SILENT),     0);
 }
 
+static void TestGetPrintStatus()
+{
+    CU_ASSERT_EQUAL(MutexGuardGetPrintStatus(), MTX_GRD_VERBOSITY_SILENT);
+
+    for(int vrb_level = MTX_GRD_VERBOSITY_MIN; vrb_level <= MTX_GRD_VERBOSITY_MAX; vrb_level++)
+    {
+        MutexGuardSetPrintStatus(vrb_level);
+        CU_ASSERT_EQUAL(MutexGuardGetPrintStatus(), vrb_level);
+    }
+
+    MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_SILENT);
+}
+
 static void TestAttrInit()
 {
     CU_ASSERT_EQUAL(MutexGuardAttrInit(NULL, 0, 0, 0), -1);
@@ -176,6 +189,7 @@ int CreateReturnValueTestsSuite()
     ADD_SUITE(pReturnValueTestsSuite, "Return values");
 
     ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestSetPrintStatus);
+    ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestGetPrintStatus);
     ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestAttrInit);
     ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestAttrInitAddr);
     ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestInit);
