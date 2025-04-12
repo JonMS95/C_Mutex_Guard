@@ -131,6 +131,12 @@ static void TestUnlock()
     CU_ASSERT_EQUAL(MutexGuardUnlock(NULL), -1);
 
     {
+        MTX_GRD_CREATE(test_mtx_grd_0);
+        MTX_GRD_INIT_SC(&test_mtx_grd_0, p_test_mtx_grd_0);
+        CU_ASSERT_EQUAL(MutexGuardUnlock(p_test_mtx_grd_0), -2);
+    }
+
+    {
         TEST_UNLOCK_HELPER_STRUCT test_unlock_helper_struct = { .fnMutexGuard = &MutexGuardUnlock };
         MTX_GRD_INIT_SC(&test_unlock_helper_struct.mtx_grd, dummy_unlock_helper);
         MTX_GRD_LOCK_SC(&test_unlock_helper_struct.mtx_grd, test_lock_dummy);
@@ -139,7 +145,7 @@ static void TestUnlock()
 
         pthread_join(thread_0, NULL);
 
-        CU_ASSERT_EQUAL(test_unlock_helper_struct.test_value, -2);
+        CU_ASSERT_EQUAL(test_unlock_helper_struct.test_value, -3);
     }
 
     MTX_GRD_CREATE(test_mtx_grd);
