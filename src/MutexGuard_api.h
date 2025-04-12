@@ -151,7 +151,7 @@ C_MUTEX_GUARD_API const char* MutexGuardGetErrorString(const int error_code);
 
 /// @brief Prints error.
 /// @param custom_error_msg String to be copied to.
-C_MUTEX_GUARD_API void MutexGuardPrintError(const char* custom_error_msg);
+C_MUTEX_GUARD_API void MutexGuardPrintError(const char* restrict custom_error_msg);
 
 /// @brief Sets verbosity level.
 /// @param target_verbosity_level Target verbosity level (silent, lock errors, backtrace or both). 
@@ -197,27 +197,6 @@ C_MUTEX_GUARD_API int MutexGuardInit(MTX_GRD* restrict p_mutex_guard);
 C_MUTEX_GUARD_API C_MUTEX_GUARD_AINLINE MTX_GRD* MutexGuardInitAddr(MTX_GRD* restrict p_mutex_guard) {
     return (MutexGuardInit(p_mutex_guard) ? NULL : p_mutex_guard);
 }
-
-/// @brief Gets lock error and copies it provided buffer.
-/// @param p_mutex_guard Pointer to mutex guard structure.
-/// @param timeout_ns Target timeout value (if any, in nanoseconds).
-/// @param lock_error_string Buffer where the error is meant to eb copied to.
-/// @param lock_error_str_size Buffer size.
-/// @return 0 if succeeded, < 0 otherwise.
-C_MUTEX_GUARD_API int MutexGuardGetLockError(   const MTX_GRD* restrict p_mutex_guard   ,
-                                                const uint64_t timeout_ns               ,
-                                                char* lock_error_string                 ,
-                                                const size_t lock_error_str_size        );
-
-/// @brief Directly prints mutex lock error to standard output.
-/// @param p_mutex_guard_acq_location Pointer to given mutex acquisition location.
-/// @param target_mutex_addr Pointer to target mutex variable.
-/// @param timeout_ns Target timeout value (if any, in nanoseconds).
-/// @param ret_lock Value returned by pthread mutex locking function.
-C_MUTEX_GUARD_API void MutexGuardPrintLockError(const MTX_GRD_ACQ_LOCATION* restrict p_mutex_guard_acq_location ,
-                                                const pthread_mutex_t* restrict target_mutex_addr               ,
-                                                const uint64_t timeout_ns                                       ,
-                                                const int ret_lock                                              );
 
 /// @brief Locks target mutex.
 /// @param p_mutex_guard Pointer to mutex guard structure.
