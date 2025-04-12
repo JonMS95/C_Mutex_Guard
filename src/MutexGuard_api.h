@@ -121,7 +121,7 @@ typedef enum
 /// @brief Unlocks mutex pointed by given MTX_GRD pointer.
 #define MTX_GRD_UNLOCK(p_mtx_grd)       MutexGuardUnlock(p_mtx_grd)
 
-/************ Desroy macros **************/
+/************ Destroy macros *************/
 
 /// @brief Destroys mutex pointed by given MTX_GRD pointer.
 #define MTX_GRD_DESTROY(p_mtx_grd)      MutexGuardDestroy(p_mtx_grd)
@@ -129,17 +129,24 @@ typedef enum
 /// @brief Destroys mutex attributes pointed by given MTX_GRD pointer.
 #define MTX_GRD_ATTR_DESTROY(p_mtx_grd) MutexGuardAttrDestroy(p_mtx_grd)
 
+/********* Error message macros **********/
+
+/// @brief Retrieves string associated to latest error code.
+#define MTX_GRD_GET_LAST_ERR_STR    MutexGuardGetErrorString(MutexGuardGetErrorCode())
+
 /*****************************************/
 
 /******* Public function prototypes ******/
 
 /// @brief Returns Mutex Guard error code.
-/// @return Currently stored error code
+/// @return Currently stored error code.
+/// @warning Stores last error code (same as errno), even if no error happened lately. Use with care.
 C_MUTEX_GUARD_API int MutexGuardGetErrorCode(void);
 
 /// @brief Returns pointer to error describing string.
 /// @param error_code Target error code to be described.
 /// @return Pointer to error string.
+/// @warning As last error code is stored each time, so a string may be returned even if no error happened lately. Use with care.
 C_MUTEX_GUARD_API const char* MutexGuardGetErrorString(const int error_code);
 
 /// @brief Prints error.
@@ -150,6 +157,10 @@ C_MUTEX_GUARD_API void MutexGuardPrintError(const char* custom_error_msg);
 /// @param target_verbosity_level Target verbosity level (silent, lock errors, backtrace or both). 
 /// @return 0 if succeeded, < 0 if invalid verbosity level was provided.
 C_MUTEX_GUARD_API int MutexGuardSetPrintStatus(const MTX_GRD_VERBOSITY_LEVEL target_verbosity_level);
+
+/// @brief Gets verbosity level.
+/// @return Currently assigned verbosity level.
+C_MUTEX_GUARD_API MTX_GRD_VERBOSITY_LEVEL MutexGuardGetPrintStatus(void);
 
 /// @brief Initializeds mutex attribute.
 /// @param p_mutex_guard Pointer to mutex guard structure.
