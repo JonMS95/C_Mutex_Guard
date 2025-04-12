@@ -132,7 +132,8 @@ static void TestLock()
         for(int i = 0; i < (__MTX_GRD_ADDR_NUM__ + 1); i++)
             MTX_GRD_TRY_LOCK(&test_mtx_grd_3);
 
-        CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1017);
+        CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1018);
+        printf("%s\r\n", MTX_GRD_GET_LAST_ERR_STR);
         CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Address counter is out of boundaries");
     }
 
@@ -145,7 +146,7 @@ static void TestLock()
 
         MTX_GRD_TRY_LOCK(&test_mtx_grd_4);
 
-        CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1017);
+        CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1018);
         CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Address counter is out of boundaries");
     }
 }
@@ -206,7 +207,7 @@ static void TestLockAddr()
         for(int i = 0; i < (__MTX_GRD_ADDR_NUM__ + 1); i++)
             MutexGuardLockAddr(&test_mtx_grd_3, MutexGuardGetFuncRetAddr(), 0, MTX_GRD_LOCK_TYPE_TRY);
 
-        CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1017);
+        CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1018);
         CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Address counter is out of boundaries");
     }
 
@@ -219,7 +220,7 @@ static void TestLockAddr()
 
         MTX_GRD_TRY_LOCK(&test_mtx_grd_4);
 
-        CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1017);
+        CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1018);
         CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Address counter is out of boundaries");
     }
 }
@@ -247,7 +248,7 @@ static void TestUnlock()
         MTX_GRD_UNLOCK(&test_mtx_grd_0);
 
         CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1011);
-        CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Owner thread's TID does not match current one");
+        CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "MTX_GRD was not locked beforehand");
     }
     
     {
@@ -260,7 +261,7 @@ static void TestUnlock()
         pthread_join(thread_0, NULL);
         MTX_GRD_UNLOCK(&test_unlock_helper_struct.mtx_grd);
 
-        CU_ASSERT_EQUAL(test_unlock_helper_struct.test_value, 1011);
+        CU_ASSERT_EQUAL(test_unlock_helper_struct.test_value, 1012);
         CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(test_unlock_helper_struct.test_value), "Owner thread's TID does not match current one");
     }
 
@@ -282,7 +283,7 @@ static void TestUnlock()
         test_mtx_grd_2.lock_counter = 0;
         MTX_GRD_UNLOCK(&test_mtx_grd_2);
 
-        CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1017);
+        CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1018);
         CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Address counter is out of boundaries");
     }
 }
@@ -316,7 +317,7 @@ static void TestDestroy()
 
         pthread_join(thread_0, NULL);
 
-        CU_ASSERT_EQUAL(test_unlock_helper_struct.test_value, 1011);
+        CU_ASSERT_EQUAL(test_unlock_helper_struct.test_value, 1012);
         CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(test_unlock_helper_struct.test_value), "Owner thread's TID does not match current one");
     }
 
