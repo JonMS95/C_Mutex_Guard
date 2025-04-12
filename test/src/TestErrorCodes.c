@@ -98,10 +98,12 @@ static void TestLock()
         MTX_GRD_TRY_LOCK(&test_mtx_grd_1);
         MTX_GRD_TRY_LOCK(&test_mtx_grd_1);
 
-        CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1009);
-        CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Could not lock target mutex (use MutexGuardGetLockError for more info)");
-
         char lock_error[200] = {0};
+
+        CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1009);
+        CU_ASSERT_PTR_NOT_NULL(strstr(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Could not lock target mutex. "));
+
+        memset(lock_error, 0, strlen(lock_error));
         MutexGuardGetLockError(&test_mtx_grd_1, 0, lock_error, sizeof(lock_error));
 
         CU_ASSERT_PTR_NOT_NULL(strstr(lock_error, "Thread with ID "));
@@ -173,7 +175,7 @@ static void TestLockAddr()
         MTX_GRD_TRY_LOCK_SC(&test_mtx_grd_1, dummy_lock_1_1);
 
         CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1009);
-        CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Could not lock target mutex (use MutexGuardGetLockError for more info)");
+        CU_ASSERT_PTR_NOT_NULL(strstr(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Could not lock target mutex. "));
 
         char lock_error[200] = {0};
         MutexGuardGetLockError(&test_mtx_grd_1, 0, lock_error, sizeof(lock_error));
@@ -337,7 +339,7 @@ static void TestDestroy()
         MTX_GRD_DESTROY(&test_mtx_grd_2);
 
         CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1010);
-        CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Standard error code (use strerror for more info)");
+        CU_ASSERT_PTR_NOT_NULL(strstr(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Standard error code. "));
     }
 }
 
