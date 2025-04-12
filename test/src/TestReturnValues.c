@@ -75,21 +75,6 @@ static void TestInitAddr()
     CU_ASSERT_PTR_NOT_NULL(MutexGuardInitAddr(&test_mtx_grd));
 }
 
-static void TestGetLockError()
-{
-    CU_ASSERT_EQUAL(MutexGuardGetLockError(NULL, 0, NULL, 0), -1);
-    
-    MTX_GRD_CREATE(test_mtx_grd);
-    MTX_GRD_INIT_SC(&test_mtx_grd, dummy);
-    
-    CU_ASSERT_EQUAL(MutexGuardGetLockError(&test_mtx_grd, 0, NULL, 0), -2);
-    
-    char str[10] = {0};
-
-    CU_ASSERT_EQUAL(MutexGuardGetLockError(&test_mtx_grd, 0, str, 0), 0);
-    CU_ASSERT_EQUAL(MutexGuardGetLockError(&test_mtx_grd, 0, str, 1), 0);
-}
-
 static void TestLock()
 {
     CU_ASSERT_EQUAL(MutexGuardLock(NULL, NULL, 0, 0), -1);
@@ -200,7 +185,6 @@ int CreateReturnValueTestsSuite()
     ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestAttrInitAddr);
     ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestInit);
     ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestInitAddr);
-    ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestGetLockError);
     ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestLock);
     ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestLockAddr);
     ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestUnlock);

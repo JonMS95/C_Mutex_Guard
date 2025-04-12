@@ -60,20 +60,6 @@ static void TestInitAddr()
     CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "MTX_GRD null pointer");
 }
 
-static void TestGetLockError()
-{
-    MutexGuardGetLockError(NULL, 0, NULL, 0);
-    CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1001);
-    CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "MTX_GRD null pointer");
-
-    MTX_GRD_CREATE(test_mtx_grd);
-    MTX_GRD_INIT_SC(&test_mtx_grd, dummy_mtx_grd);
-    
-    MutexGuardGetLockError(&test_mtx_grd, 0, NULL, 0);
-    CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1004);
-    CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Target string to write is null");
-}
-
 static void TestLock()
 {
     MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_SILENT);
@@ -104,7 +90,7 @@ static void TestLock()
         CU_ASSERT_PTR_NOT_NULL(strstr(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Could not lock target mutex. "));
 
         memset(lock_error, 0, strlen(lock_error));
-        MutexGuardGetLockError(&test_mtx_grd_1, 0, lock_error, sizeof(lock_error));
+        strncpy(lock_error, MutexGuardGetErrorString(MutexGuardGetErrorCode()), sizeof(lock_error) - strlen(lock_error));
 
         CU_ASSERT_PTR_NOT_NULL(strstr(lock_error, "Thread with ID "));
         CU_ASSERT_PTR_NOT_NULL(strstr(lock_error, " cannot acquire mutex at "));
@@ -179,7 +165,7 @@ static void TestLockAddr()
         CU_ASSERT_PTR_NOT_NULL(strstr(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Could not lock target mutex. "));
 
         char lock_error[200] = {0};
-        MutexGuardGetLockError(&test_mtx_grd_1, 0, lock_error, sizeof(lock_error));
+        strncpy(lock_error, MutexGuardGetErrorString(MutexGuardGetErrorCode()), sizeof(lock_error) - strlen(lock_error));
 
         CU_ASSERT_PTR_NOT_NULL(strstr(lock_error, "Thread with ID "));
         CU_ASSERT_PTR_NOT_NULL(strstr(lock_error, " cannot acquire mutex at "));
@@ -355,7 +341,6 @@ int CreateErrorCodeTestsSuite()
     ADD_TEST_2_SUITE(pErrorCodeTestsSuite, TestAttrInitAddr);
     ADD_TEST_2_SUITE(pErrorCodeTestsSuite, TestInit);
     ADD_TEST_2_SUITE(pErrorCodeTestsSuite, TestInitAddr);
-    ADD_TEST_2_SUITE(pErrorCodeTestsSuite, TestGetLockError);
     ADD_TEST_2_SUITE(pErrorCodeTestsSuite, TestLock);
     ADD_TEST_2_SUITE(pErrorCodeTestsSuite, TestLockAddr);
     ADD_TEST_2_SUITE(pErrorCodeTestsSuite, TestUnlock);
