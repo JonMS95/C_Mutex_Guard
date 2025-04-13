@@ -35,8 +35,18 @@
     <test>
         <deps Dest="test/deps">
             <Posix_Threads
-                type="system"
+                type="APT_package"
                 lib_name="pthread"
+                package="libc6-dev"
+            />
+            <CUnit_Lib
+                type="APT_package"
+                package="libcunit1"
+            />
+            <CUnit_Dev
+                type="APT_package"
+                lib_name="cunit"
+                package="libcunit1-dev"
             />
             <C_Mutex_Guard
                 version_major="1"
