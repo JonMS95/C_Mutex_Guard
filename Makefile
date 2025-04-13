@@ -29,12 +29,12 @@ LIBRARY_LANG	:= $(shell xmlstarlet sel -t -v "$(PRJ_DATA_NODE)@language" $(CONFI
 LIBRARY_NAME 	:= $(shell xmlstarlet sel -t -v "$(PRJ_DATA_NODE)@library_name" $(CONFIG_FILE))
 SO_FILE_NAME 	:= lib$(LIBRARY_NAME).so.$(VERSION_MAJOR).$(VERSION_MINOR)
 
-# System dependencies data
-SYSTEM_DEPS_PREFIX_REGEX:='s/\([^ ]*\)/-l\1/g'
-SYSTEM_DEPS_XML_SENTENCE:=xmlstarlet sel -t -m '/config/deps/*[@type="system"]' -v '@lib_name' -n $(CONFIG_FILE)
-TEST_SYSTEM_DEPS_XML_SENTENCE:=xmlstarlet sel -t -m '/config/test/deps/*[@type="system"]' -v '@lib_name' -n $(CONFIG_FILE)
-SYSTEM_DEPS_LINK:=$(shell echo $(shell $(SYSTEM_DEPS_XML_SENTENCE)) | sed $(SYSTEM_DEPS_PREFIX_REGEX))
-TEST_SYSTEM_DEPS_LINK:=$(shell echo $(shell $(TEST_SYSTEM_DEPS_XML_SENTENCE) | sed $(SYSTEM_DEPS_PREFIX_REGEX)))
+# APT package dependencies data
+APT_PKG_DEPS_PREFIX_REGEX:='s/\([^ ]*\)/-l\1/g'
+APT_PKG_DEPS_XML_SENTENCE:=xmlstarlet sel -t -m '/config/deps/*[@type="APT_package"]' -v '@lib_name' -n $(CONFIG_FILE)
+TEST_APT_PKG_DEPS_XML_SENTENCE:=xmlstarlet sel -t -m '/config/test/deps/*[@type="APT_package"]' -v '@lib_name' -n $(CONFIG_FILE)
+APT_PKG_DEPS_LINK:=$(shell echo $(shell $(APT_PKG_DEPS_XML_SENTENCE)) | grep -v '^$$' | sed $(APT_PKG_DEPS_PREFIX_REGEX))
+TEST_APT_PKG_DEPS_LINK:=$(shell echo $(shell $(TEST_APT_PKG_DEPS_XML_SENTENCE) | grep -v '^$$' | sed $(APT_PKG_DEPS_PREFIX_REGEX)))
 
 # Shell files
 SHELL_DIRS			:= $(SH_FILES_LOCAL_NAME)/directories.sh
@@ -190,7 +190,7 @@ test_deps:
 	@bash $(SHELL_SYM_LINKS) -d $(D_TEST_DEPS)
 
 $(TEST_EXE_MAIN): $(TEST_SRC_MAIN) $(wildcard $(TEST_SO_DEPS_DIR)/*.so) $(wildcard $(TEST_HEADER_DEPS_DIR)/*.h)
-	$(COMP) $(FLAGS) -I$(TEST_HEADER_DEPS_DIR) $(TEST_SRC_MAIN) -L$(TEST_SO_DEPS_DIR) $(TEST_SYSTEM_DEPS_LINK) $(addprefix -l,$(patsubst lib%.so,%,$(shell ls $(TEST_SO_DEPS_DIR)))) -o $(TEST_EXE_MAIN)
+	$(COMP) $(FLAGS) -I$(TEST_HEADER_DEPS_DIR) $(TEST_SRC_MAIN) -L$(TEST_SO_DEPS_DIR) $(TEST_APT_PKG_DEPS_LINK) $(addprefix -l,$(patsubst lib%.so,%,$(shell ls $(TEST_SO_DEPS_DIR)))) -o $(TEST_EXE_MAIN)
 
 test_main: $(TEST_EXE_MAIN)
 
