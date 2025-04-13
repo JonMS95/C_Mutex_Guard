@@ -13,51 +13,51 @@ static void TestSetPrintStatus()
 {
     MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_MIN - 1);
     CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1000);
-    CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Invalid verbosity level");
+    CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "Invalid verbosity level");
 
     MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_MIN + 1);
     CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1000);
-    CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Invalid verbosity level");
+    CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "Invalid verbosity level");
 }
 
 static void TestAttrInit()
 {
     MutexGuardAttrInit(NULL, 0, 0, 0);
     CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1001);
-    CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "MTX_GRD null pointer");
+    CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "MTX_GRD null pointer");
 
     MTX_GRD_CREATE(test_mtx_grd);
     
     MutexGuardAttrInit(&test_mtx_grd, -1, 0, 0);
     CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1006);
-    CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Attribute setting failed");
+    CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "Attribute setting failed");
 }
 
 static void TestAttrInitAddr()
 {
     MutexGuardAttrInitAddr(NULL, 0, 0, 0);
     CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1001);
-    CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "MTX_GRD null pointer");
+    CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "MTX_GRD null pointer");
     
     MTX_GRD_CREATE(test_mtx_grd);
     
     MutexGuardAttrInitAddr(&test_mtx_grd, -1, 0, 0);
     CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1006);
-    CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Attribute setting failed");
+    CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "Attribute setting failed");
 }
 
 static void TestInit()
 {
     MutexGuardInit(NULL);
     CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1001);
-    CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "MTX_GRD null pointer");
+    CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "MTX_GRD null pointer");
 }
 
 static void TestInitAddr()
 {
     MutexGuardInitAddr(NULL);
     CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1001);
-    CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "MTX_GRD null pointer");
+    CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "MTX_GRD null pointer");
 }
 
 static void TestLock()
@@ -66,7 +66,7 @@ static void TestLock()
 
     MutexGuardLock(NULL, NULL, 0, 0);
     CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1001);
-    CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "MTX_GRD null pointer");
+    CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "MTX_GRD null pointer");
 
     {
         MTX_GRD_CREATE(test_mtx_grd_0);
@@ -74,7 +74,7 @@ static void TestLock()
         MutexGuardLock(&test_mtx_grd_0, NULL, 0, MTX_GRD_LOCK_TYPE_MIN - 1);
 
         CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1008);
-        CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Invalid lock type provided");
+        CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "Invalid lock type provided");
     }
 
     {
@@ -87,10 +87,10 @@ static void TestLock()
         char lock_error[200] = {0};
 
         CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1009);
-        CU_ASSERT_PTR_NOT_NULL(strstr(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Could not lock target mutex. "));
+        CU_ASSERT_PTR_NOT_NULL(strstr(MTX_GRD_GET_LAST_ERR_STR, "Could not lock target mutex. "));
 
         memset(lock_error, 0, strlen(lock_error));
-        strncpy(lock_error, MutexGuardGetErrorString(MutexGuardGetErrorCode()), sizeof(lock_error) - strlen(lock_error));
+        strncpy(lock_error, MTX_GRD_GET_LAST_ERR_STR, sizeof(lock_error) - strlen(lock_error));
 
         CU_ASSERT_PTR_NOT_NULL(strstr(lock_error, "Thread with ID "));
         CU_ASSERT_PTR_NOT_NULL(strstr(lock_error, " cannot acquire mutex at "));
@@ -107,7 +107,7 @@ static void TestLock()
         MTX_GRD_TRY_LOCK(&test_mtx_grd_2);
 
         CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1007);
-        CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "No space available for more addresses");
+        CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "No space available for more addresses");
     }
 
     {
@@ -120,7 +120,7 @@ static void TestLock()
 
         CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1018);
         printf("%s\r\n", MTX_GRD_GET_LAST_ERR_STR);
-        CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Address counter is out of boundaries");
+        CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "Address counter is out of boundaries");
     }
 
     {
@@ -133,7 +133,7 @@ static void TestLock()
         MTX_GRD_TRY_LOCK(&test_mtx_grd_4);
 
         CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1018);
-        CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Address counter is out of boundaries");
+        CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "Address counter is out of boundaries");
     }
 }
 
@@ -143,7 +143,7 @@ static void TestLockAddr()
 
     MutexGuardLockAddr(NULL, NULL, 0, 0);
     CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1001);
-    CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "MTX_GRD null pointer");
+    CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "MTX_GRD null pointer");
 
     {
         MTX_GRD_CREATE(test_mtx_grd_0);
@@ -151,7 +151,7 @@ static void TestLockAddr()
         MutexGuardLockAddr(&test_mtx_grd_0, NULL, 0, MTX_GRD_LOCK_TYPE_MIN - 1);
 
         CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1008);
-        CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Invalid lock type provided");
+        CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "Invalid lock type provided");
     }
 
     {
@@ -162,10 +162,10 @@ static void TestLockAddr()
         MTX_GRD_TRY_LOCK_SC(&test_mtx_grd_1, dummy_lock_1_1);
 
         CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1009);
-        CU_ASSERT_PTR_NOT_NULL(strstr(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Could not lock target mutex. "));
+        CU_ASSERT_PTR_NOT_NULL(strstr(MTX_GRD_GET_LAST_ERR_STR, "Could not lock target mutex. "));
 
         char lock_error[200] = {0};
-        strncpy(lock_error, MutexGuardGetErrorString(MutexGuardGetErrorCode()), sizeof(lock_error) - strlen(lock_error));
+        strncpy(lock_error, MTX_GRD_GET_LAST_ERR_STR, sizeof(lock_error) - strlen(lock_error));
 
         CU_ASSERT_PTR_NOT_NULL(strstr(lock_error, "Thread with ID "));
         CU_ASSERT_PTR_NOT_NULL(strstr(lock_error, " cannot acquire mutex at "));
@@ -182,7 +182,7 @@ static void TestLockAddr()
         MTX_GRD_TRY_LOCK_SC(&test_mtx_grd_2, dummy_lock_2);
         
         CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1007);
-        CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "No space available for more addresses");
+        CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "No space available for more addresses");
     }
 
     {
@@ -194,7 +194,7 @@ static void TestLockAddr()
             MutexGuardLockAddr(&test_mtx_grd_3, MutexGuardGetFuncRetAddr(), 0, MTX_GRD_LOCK_TYPE_TRY);
 
         CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1018);
-        CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Address counter is out of boundaries");
+        CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "Address counter is out of boundaries");
     }
 
     {
@@ -207,7 +207,7 @@ static void TestLockAddr()
         MTX_GRD_TRY_LOCK(&test_mtx_grd_4);
 
         CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1018);
-        CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Address counter is out of boundaries");
+        CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "Address counter is out of boundaries");
     }
 }
 
@@ -227,14 +227,14 @@ static void TestUnlock()
     MutexGuardUnlock(NULL);
 
     CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1001);
-    CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "MTX_GRD null pointer");
+    CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "MTX_GRD null pointer");
 
     {
         MTX_GRD_CREATE(test_mtx_grd_0);
         MTX_GRD_UNLOCK(&test_mtx_grd_0);
 
         CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1011);
-        CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "MTX_GRD was not locked beforehand");
+        CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "MTX_GRD was not locked beforehand");
     }
     
     {
@@ -259,7 +259,7 @@ static void TestUnlock()
         MTX_GRD_UNLOCK(&test_mtx_grd_1);
 
         CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1007);
-        CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "No space available for more addresses");
+        CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "No space available for more addresses");
     }
 
     {
@@ -270,7 +270,7 @@ static void TestUnlock()
         MTX_GRD_UNLOCK(&test_mtx_grd_2);
 
         CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1018);
-        CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Address counter is out of boundaries");
+        CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "Address counter is out of boundaries");
     }
 }
 
@@ -292,7 +292,7 @@ static void TestDestroy()
     MutexGuardDestroy(NULL);
 
     CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1001);
-    CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "MTX_GRD null pointer");
+    CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "MTX_GRD null pointer");
     
     {
         TEST_UNLOCK_HELPER_STRUCT test_unlock_helper_struct = { .fnMutexGuard = &MutexGuardDestroy };
@@ -315,7 +315,7 @@ static void TestDestroy()
         MTX_GRD_DESTROY(&test_mtx_grd_1);
 
         CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1007);
-        CU_ASSERT_STRING_EQUAL(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "No space available for more addresses");
+        CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "No space available for more addresses");
     }
 
     {
@@ -326,7 +326,7 @@ static void TestDestroy()
         MTX_GRD_DESTROY(&test_mtx_grd_2);
 
         CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1010);
-        CU_ASSERT_PTR_NOT_NULL(strstr(MutexGuardGetErrorString(MutexGuardGetErrorCode()), "Standard error code. "));
+        CU_ASSERT_PTR_NOT_NULL(strstr(MTX_GRD_GET_LAST_ERR_STR, "Standard error code. "));
     }
 }
 
