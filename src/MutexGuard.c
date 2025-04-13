@@ -34,16 +34,16 @@
 #define MTX_GRD_LAST_LOCK_ERR_DEF_MSG   "Could not lock target mutex. "
 #define MTX_GRD_STD_ERR_DEF_MSG         "Standard error code. "
 
-#define MTX_GRD_PROC_MAX_LEN                (uint16_t)256
-#define MTX_GRD_PROC_MAPS_PATH              "/proc/self/maps"
-#define MTX_GRD_CURRENT_PROC_PATH           "/proc/self/exe"
+#define MTX_GRD_PROC_MAX_LEN        (uint16_t)256
+#define MTX_GRD_PROC_MAPS_PATH      "/proc/self/maps"
+#define MTX_GRD_CURRENT_PROC_PATH   "/proc/self/exe"
 
 #define MTX_GRD_ADDR2LINE_CMD_FORMAT_LEN        (uint8_t)26
 #define MTX_GRD_ADDR2LINE_CMD_FORMAT            "addr2line -f --exe=%s +%p"
 #define MTX_GRD_ADDR2LINE_CMD_FORMAT_MAX_LEN    MTX_GRD_ADDR2LINE_CMD_FORMAT_LEN + PATH_MAX
 #define MTX_GRD_FN_LINE_DELIMITER               ':'
 
-#define MTX_GRD_ACQ_LOCATION_FULL_FORMAT        "#%u %p (+%p): %s defined at %s:%llu\r\n"
+#define MTX_GRD_ACQ_LOCATION_FULL_FORMAT    "#%u %p (+%p): %s defined at %s:%llu\r\n"
 
 #define MTX_GRD_MSG_ERR_MUTEX_HEADER            "*********************************\r\n"
 #define MTX_GRD_MSG_ERR_MUTEX_TIMEOUT           "Timeout elapsed (%lu s, %lu ns). "
@@ -280,11 +280,11 @@ void MutexGuardPrintError(const char* restrict custom_error_msg)
     if( (custom_error_msg == NULL) || (*custom_error_msg == '\0') )
         msg_exists = false;
     
-    fprintf(stderr                                              ,
-            "%s%s%s\r\n"                                        ,
-            (msg_exists ? custom_error_msg : "" )               ,
-            (msg_exists ? ": " : "" )                            ,
-            MutexGuardGetErrorString(MutexGuardGetErrorCode())  );
+    fprintf(stderr                                  ,
+            "%s%s%s\r\n"                            ,
+            (msg_exists ? custom_error_msg : "" )   ,
+            (msg_exists ? ": " : "" )               ,
+            MTX_GRD_GET_LAST_ERR_STR                );
 }
 
 /// @brief Sets verbosity level.
@@ -512,7 +512,7 @@ int MutexGuardGetLockError( const MTX_GRD* restrict p_mutex_guard   ,
     if(copy_lock_error_string < 0)
     {   
         strncat(lock_error_string                                   ,
-                MutexGuardGetErrorString(MutexGuardGetErrorCode())  ,
+                MTX_GRD_GET_LAST_ERR_STR                            ,
                 (lock_error_str_size - strlen(lock_error_string))   );
         
         return -3;
