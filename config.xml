@@ -35,14 +35,18 @@
     <test>
         <deps Dest="test/deps">
             <Posix_Threads
-                type="system"
+                type="APT_package"
                 lib_name="pthread"
-                install_cmd="sudo apt install libc6-dev"
+                package="libc6-dev"
             />
-            <CUnit_Tests
-                type="system"
+            <CUnit_Lib
+                type="APT_package"
+                package="libcunit1"
+            />
+            <CUnit_Dev
+                type="APT_package"
                 lib_name="cunit"
-                install_cmd="sudo apt install libcunit1 libcunit1-dev"
+                package="libcunit1-dev"
             />
             <C_Mutex_Guard
                 version_major="1"
