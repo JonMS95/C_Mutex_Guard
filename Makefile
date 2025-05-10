@@ -86,6 +86,9 @@ D_TEST_DEPS		:= config/test/deps/
 #################################################
 
 #################################################################################
+# Declare Compound rules as phony (only the suitable ones):
+.PHONY: check_basic_deps check_sh_deps
+
 # Compound rules
 exe: clean check_basic_deps check_sh_deps ln_sh_files directories deps so_lib api
 
@@ -93,6 +96,9 @@ test: clean_test directories test_deps test_main test_exe
 #################################################################################
 
 ##########################################################################
+# Declare Basic rules as phony (only the suitable ones):
+.PHONY: check_basic_deps check_sh_deps
+
 # Basic dependencies
 check_basic_deps:
 	@for i in $(BASIC_SYSTEM_DEPS); do								 \
@@ -155,6 +161,9 @@ check_sh_deps:
 ##########################################################################
 
 #############################################################################
+# Declare Exe rules as phony (only the suitable ones):
+.PHONY: clean ln_sh_files directories deps api clean_api
+
 # Exe Rules
 clean:
 	rm -rf $(SH_FILES_LOCAL_NAME) obj lib deps
@@ -182,6 +191,9 @@ clean_api:
 #############################################################################
 
 ##########################################################################################################################
+# Declare Test rules as phony (only the suitable ones):
+.PHONY: clean_test test_deps test_exe
+
 # Test Rules
 clean_test:
 	rm -rf test/deps test/obj test/exe
