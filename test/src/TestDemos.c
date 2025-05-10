@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "MutexGuard_api.h"
+#include "SeverityLog_api.h"
 
 /*****************************************/
 
@@ -68,7 +69,7 @@ static void* testMutexGuardDeadlockRoutine(void* arg)
 /// @brief Intentionally causes a deadlock between two threads, which try to lock two mutexes in different order each time.
 static void TestDemoDeadlock()
 {
-    printf("%s\r\n", TEST_DEADLOCK_DEMO_HEADER);
+    SVRTY_LOG_INF(TEST_DEADLOCK_DEMO_HEADER);
 
     // Create two MTX_GRD variables.
     MTX_GRD_CREATE(mtx_grd_0);
@@ -119,7 +120,7 @@ static void TestDemoDeadlock()
 /// @brief A function causing a self-deadlock caused by a single thread trying to lock a non-recursive MTX_GRD twice in a row.
 static void TestDemoSelfDeadlock()
 {
-    printf("%s\r\n", TEST_SELF_DEADLOCK_DEMO_HEADER);
+    SVRTY_LOG_INF(TEST_SELF_DEADLOCK_DEMO_HEADER);
 
     // Ensure no error is automatically shown this time. Instead, it's going to be retrieved by using proper functions then printed.
     MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_SILENT);
@@ -137,26 +138,26 @@ static void TestDemoSelfDeadlock()
     // If any error happens, then copy it to the error string so as to clarify what was the reason.
     if(MTX_GRD_LOCK(&mtx_grd_0))
     {
-        printf("%s\r\n", MTX_GRD_GET_LAST_ERR_STR);
+        SVRTY_LOG_ERR(MTX_GRD_GET_LAST_ERR_STR);
         return;
     }
 
     // If no error happened, go ahead and try to lock it again (it won't be possible since the mutex has been initialized as non-recursive).
     if(MTX_GRD_TRY_LOCK(&mtx_grd_0))
-        printf("%s\r\n", MTX_GRD_GET_LAST_ERR_STR);
+        SVRTY_LOG_ERR(MTX_GRD_GET_LAST_ERR_STR);
     
     MTX_GRD_UNLOCK(&mtx_grd_0);
 
     // No error should occur after locking the mutex priorly declared beyond this point.
     MTX_GRD_LOCK_SC(&mtx_grd_0, p_dummy_lock_0);
     if(!p_dummy_lock_0)
-        printf("%s\r\n", MTX_GRD_GET_LAST_ERR_STR);
+        SVRTY_LOG_ERR(MTX_GRD_GET_LAST_ERR_STR);
 }
 
 /// @brief Creates a scoped MTX_GRD just to test that the mutex is automatically unlocked if necessary. 
 static void TestScopeLifetimeMutex(void)
 {
-    printf("%s\r\n", TEST_SCOPED_LIFETIME_MUTEX);
+    SVRTY_LOG_INF(TEST_SCOPED_LIFETIME_MUTEX);
 
     MTX_GRD_CREATE(mtx_grd);
 
@@ -169,7 +170,7 @@ static void TestScopeLifetimeMutex(void)
     }
 
     if(MTX_GRD_UNLOCK(&mtx_grd) < 0)
-        printf("%s\r\n", MTX_GRD_GET_LAST_ERR_STR);
+        SVRTY_LOG_ERR(MTX_GRD_GET_LAST_ERR_STR);
 }
 
 void TestDemo()
