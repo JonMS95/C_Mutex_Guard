@@ -119,7 +119,6 @@ static void TestLock()
             MTX_GRD_TRY_LOCK(&test_mtx_grd_3);
 
         CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1018);
-        printf("%s\r\n", MTX_GRD_GET_LAST_ERR_STR);
         CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "Address counter is out of boundaries");
     }
 
