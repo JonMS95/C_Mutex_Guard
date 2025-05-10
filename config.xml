@@ -12,6 +12,7 @@
     <!-- Directory structure -->
     <Directories>
         <lib/>
+        <API/>
         <test>
             <deps>
                 <inc/>
@@ -29,6 +30,15 @@
         local_path="~/Desktop/scripts/C/C_Common_shell_files"
         URL="https://github.com/JonMS95/C_Common_shell_files"
     />
+
+    <!-- Dependencies -->
+    <deps Dest="">
+        <Posix_Threads
+            type="APT_package"
+            lib_name="pthread"
+            package="libc6-dev"
+        />
+    </deps>
 
     <!-- Tests -->
     <!-- Paths to dependency files for the testing executable. -->
@@ -54,6 +64,13 @@
                 version_mode="DEBUG"
                 local_path="."
                 URL="https://github.com/JonMS95/C_Mutex_Guard"
+            />
+            <C_Severity_Log
+                version_major="1"
+                version_minor="4"
+                version_mode="DEBUG"
+                URL="https://github.com/JonMS95/C_Severity_Log"
+                local_path="~/Desktop/scripts/C/C_Severity_Log"
             />
         </deps>
     </test>
