@@ -128,12 +128,12 @@ check_sh_deps:
 			cd $(SH_FILES_PATH) 									;\
 																	 \
 			if [ ! -d API ]; then 									 \
-				./Source_files/directories.sh 						;\
+				./src/directories.sh 						;\
 			fi 														;\
 																	 \
 			git pull 												;\
 			git checkout "tags/$(SH_FILES_VERSION)" 				;\
-			./Source_files/gen_CSF_version.sh 						;\
+			./src/gen_CSF_version.sh 						;\
 			git checkout main 										;\
 	 		git pull 												;\
 		fi 															;\
@@ -152,7 +152,7 @@ check_sh_deps:
 		git clone $(SH_FILES_URL) 									;\
 		cd $(SH_FILES_PATH) 										;\
 		git checkout "tags/$(SH_FILES_VERSION)" 					;\
-		./Source_files/gen_CSF_version.sh 							;\
+		./src/gen_CSF_version.sh 							;\
 		git checkout main 											;\
 	 	git pull 													;\
 																	 \
