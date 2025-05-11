@@ -3,7 +3,7 @@
     <Project_data
         version_major="1"
         version_minor="0"
-        version_mode="DEBUG"
+        version_mode="RELEASE"
         URL="https://github.com/JonMS95/C_Mutex_Guard"
         type="library"
         language="C"
@@ -27,7 +27,7 @@
         version_major="1"
         version_minor="3"
         version_mode="RELEASE"
-        local_path="~/Desktop/scripts/C/C_Common_shell_files"
+        local_path="~/C_Common_shell_files"
         URL="https://github.com/JonMS95/C_Common_shell_files"
     />
 
@@ -58,19 +58,19 @@
                 lib_name="cunit"
                 package="libcunit1-dev"
             />
+            <C_Severity_Log
+                version_major="2"
+                version_minor="0"
+                version_mode="RELEASE"
+                URL="https://github.com/JonMS95/C_Severity_Log"
+                local_path="~/C_Severity_Log"
+            />
             <C_Mutex_Guard
                 version_major="1"
                 version_minor="0"
-                version_mode="DEBUG"
+                version_mode="RELEASE"
                 local_path="."
                 URL="https://github.com/JonMS95/C_Mutex_Guard"
-            />
-            <C_Severity_Log
-                version_major="1"
-                version_minor="4"
-                version_mode="DEBUG"
-                URL="https://github.com/JonMS95/C_Severity_Log"
-                local_path="~/Desktop/scripts/C/C_Severity_Log"
             />
         </deps>
     </test>
