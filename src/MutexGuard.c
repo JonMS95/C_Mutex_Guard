@@ -310,7 +310,7 @@ MTX_GRD_VERBOSITY_LEVEL MutexGuardGetPrintStatus(void)
     return verbosity_level;
 }
 
-/// @brief Initializeds mutex attribute.
+/// @brief Initializes mutex attribute.
 /// @param p_mutex_guard Pointer to mutex guard structure.
 /// @param mutex_type Mutex type (NORMAL, ERRORCHECK, RECURSIVE, DEFAULT).
 /// @param priority Mutex priority (NONE, INHERIT, PROTECT).
