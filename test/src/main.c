@@ -22,7 +22,7 @@
 int main()
 {
     // Init severity log
-    SeverityLogInit(1000, SVRTY_LOG_MASK_ALL, false, false, true);
+    SeverityLogInitWithMask(1000, 0xFF);
 
     // Unit tests
     if(CU_initialize_registry() != CUE_SUCCESS)
