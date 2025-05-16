@@ -15,8 +15,6 @@ This project aims to provide a useful tool to handle POSIX thread MutExes as wel
 
 
 ## Introduction <a id="introduction"></a> 📑
-README file is yet to be completed from this point onwards.
-
 Building this project has involved a deep understanding of:
 * C/C++ programming
 * Bash scripting
@@ -106,8 +104,6 @@ cd /path/to/repos
 git clone https://github.com/JonMS95/C_Mutex_Guard
 ```
 
-**Note**: by default, the path to the repository should be found within a directory (found in Desktop) called "scripts" (it's to say, **_~/Desktop/scripts/C_**). In order to modify this, change the paths specified in [config.xml](config.xml). If dependencies are not found in the specified path, the path itself will be created, and then dependencies will be compiled there. 
-
 2. Then navigate to the directory in which the repo has been downloaded, and set execution permissions to every file just in case they have not been sent beforehand.
 
 ```bash
@@ -151,10 +147,11 @@ Again, the one below is the path to the generated executable file:
 
 ## Usage <a id="usage"></a> 🖱️
 See Doxygen comments placed over every macro, function definition and struct type definition in the API header file ([api-file](src/MutexGuard_api.h)).
+Tests source files (especially the ones found within [TestDemos.c](test/src/TestDemos.c) can provide deep insight as well).
+
 
 ## To do <a id="to-do"></a> ☑️
-- [ ] Add demo test, showing a practical case
-- [ ] Add dependency installing scripts (Cunit)
+Nothing to be done by now.
 
 
 ## Related Documents <a id="related-documents"></a> 🗄️
