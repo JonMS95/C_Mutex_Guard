@@ -56,12 +56,24 @@ static void* testMutexGuardDeadlockRoutine(void* arg)
 
     // Try to lock mutex (scoped).
     MTX_GRD_TRY_LOCK_SC(test_pair->p_mtx_grd_0, cleanup_ptr_0);
+ 
+    if(!cleanup_ptr_0)
+    {
+        SVRTY_LOG_WNG(MTX_GRD_GET_LAST_ERR_STR);
+        return NULL;
+    }
     
     // Wait for a second so that each thread has locked one of the mutexes (this will cause the deadlock).
     sleep(1);
 
     // Try to lock it for a given period of time. It won't happen, since the other thread has already locked it.
-    MTX_GRD_TIMED_LOCK_SC(test_pair->p_mtx_grd_0, TEST_1_SEC_AS_NS, cleanup_ptr_1);
+    MTX_GRD_TIMED_LOCK_SC(test_pair->p_mtx_grd_1, TEST_1_SEC_AS_NS, cleanup_ptr_1);
+    
+    if(!cleanup_ptr_1)
+    {
+        SVRTY_LOG_WNG(MTX_GRD_GET_LAST_ERR_STR);
+        return NULL;
+    }
 
     return NULL;
 }
@@ -96,9 +108,6 @@ static void TestDemoDeadlock()
     // Create two thread type variables.
     pthread_t t_0, t_1;
 
-    // Update level for lock errors to be automatically displayed.
-    MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_LOCK_ERROR);
-
     // Create (start) the threads. Both will execute the same routine, but they will try to unlock the mutexes in different order in each case.
     if(pthread_create(&t_0, NULL, testMutexGuardDeadlockRoutine, &test_pair_0))
         return;
@@ -112,9 +121,6 @@ static void TestDemoDeadlock()
     // Wait for the priorly created threads to join the main one.
     pthread_join(t_0, NULL);
     pthread_join(t_1, NULL);
-
-    // Set verbosity level as silent again.
-    MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_SILENT);
 }
 
 /// @brief A function causing a self-deadlock caused by a single thread trying to lock a non-recursive MTX_GRD twice in a row.
@@ -138,20 +144,20 @@ static void TestDemoSelfDeadlock()
     // If any error happens, then copy it to the error string so as to clarify what was the reason.
     if(MTX_GRD_LOCK(&mtx_grd_0))
     {
-        SVRTY_LOG_ERR(MTX_GRD_GET_LAST_ERR_STR);
+        SVRTY_LOG_WNG(MTX_GRD_GET_LAST_ERR_STR);
         return;
     }
 
     // If no error happened, go ahead and try to lock it again (it won't be possible since the mutex has been initialized as non-recursive).
     if(MTX_GRD_TRY_LOCK(&mtx_grd_0))
-        SVRTY_LOG_ERR(MTX_GRD_GET_LAST_ERR_STR);
+        SVRTY_LOG_WNG(MTX_GRD_GET_LAST_ERR_STR);
     
     MTX_GRD_UNLOCK(&mtx_grd_0);
 
     // No error should occur after locking the mutex priorly declared beyond this point.
     MTX_GRD_LOCK_SC(&mtx_grd_0, p_dummy_lock_0);
     if(!p_dummy_lock_0)
-        SVRTY_LOG_ERR(MTX_GRD_GET_LAST_ERR_STR);
+        SVRTY_LOG_WNG(MTX_GRD_GET_LAST_ERR_STR);
 }
 
 /// @brief Creates a scoped MTX_GRD just to test that the mutex is automatically unlocked if necessary. 
@@ -170,7 +176,7 @@ static void TestScopeLifetimeMutex(void)
     }
 
     if(MTX_GRD_UNLOCK(&mtx_grd) < 0)
-        SVRTY_LOG_ERR(MTX_GRD_GET_LAST_ERR_STR);
+        SVRTY_LOG_WNG(MTX_GRD_GET_LAST_ERR_STR);
 }
 
 void TestDemo()
