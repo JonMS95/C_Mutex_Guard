@@ -60,7 +60,7 @@
             />
             <C_Severity_Log
                 version_major="2"
-                version_minor="0"
+                version_minor="1"
                 version_mode="RELEASE"
                 URL="https://github.com/JonMS95/C_Severity_Log"
                 local_path="~/C_Severity_Log"
