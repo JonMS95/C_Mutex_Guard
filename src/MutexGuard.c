@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <execinfo.h>
 #include <stdbool.h>
+#include "SignalHandler_api.h"
 #include "MutexGuard_api.h"
 
 /*****************************************/
@@ -108,6 +109,7 @@ typedef enum
     MTX_GRD_ERR_COULD_NOT_EXECUTE_ADDR2LINE                 ,
     MTX_GRD_ERR_COULD_NOT_CLOSE_ADDR2LINE                   ,
     MTX_GRD_ERR_OUT_OF_ADDR_COUNTER_BOUNDARIES              ,
+    MTX_GRD_ERR_INTERNAL_LOCK_ERROR                         ,
     MTX_GRD_ERR_OUT_OF_BOUNDARIES_ERR                       ,
 
     MTX_GRD_ERR_MIN = MTX_GRD_ERR_INVALID_VERBOSITY_LEVEL   ,
@@ -121,8 +123,11 @@ typedef struct timespec mtx_to_t;
 
 /****** Private function prototypes ******/
 
-static void MutexGuardInitModule(void) __attribute__((constructor));
-static void MutexGuardEndModule(void) __attribute__((destructor));
+static void MutexGuardLoad(void) __attribute__((constructor));
+static void MutexGuardUnload(void) __attribute__((destructor));
+
+static void MutexGuardFreeResources(void);
+static void MutexGuardSignalHandler(const int sig_num);
 
 static int MutexGuardStoreNewAddress(MTX_GRD* restrict p_mutex_guard, void* address);
 static int MutexGuardRemoveLatestAddress(MTX_GRD* restrict p_mutex_guard);
@@ -183,6 +188,8 @@ static __thread int mutex_guard_lock_error_code = 0;
 static __thread char last_lock_error_string[__MTX_GRD_LAST_LOCK_ERR_STRING_LEN__] = MTX_GRD_LAST_LOCK_ERR_DEF_MSG;
 /// @brief String to store standard error strings.
 static __thread char standard_error_string[__MTX_GRD_STD_ERR_STRING_LEN__] = MTX_GRD_STD_ERR_DEF_MSG;
+/// @brief Tells whether library resources have been already freed.
+static bool resources_freed = false;
 
 /// @brief Error code strings (related to mutex_guard_errno).
 static const char* error_str_table[MTX_GRD_ERR_MAX - MTX_GRD_ERR_MIN + 1] =
@@ -206,6 +213,7 @@ static const char* error_str_table[MTX_GRD_ERR_MAX - MTX_GRD_ERR_MIN + 1] =
     "Could not execute addr2line"                       ,
     "Could not close addr2line running process"         ,
     "Address counter is out of boundaries"              ,
+    "An internal lock error happened"                   ,
     "Out of boundaries error code"                      ,
 };
 
@@ -214,8 +222,10 @@ static const char* error_str_table[MTX_GRD_ERR_MAX - MTX_GRD_ERR_MIN + 1] =
 /********** Function definitions *********/
 
 /// @brief Initializes module by setting default verbosity and initializing shared resources mutex.
-static void __attribute__((constructor)) MutexGuardInitModule(void)
+static void __attribute__((constructor)) MutexGuardLoad(void)
 {
+    resources_freed = false;
+
     MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_SILENT);
 
     MTX_GRD_ATTR_INIT_SC(   &acq_info_lock          ,
@@ -225,13 +235,32 @@ static void __attribute__((constructor)) MutexGuardInitModule(void)
                             p_acq_info_lock_attr    );
 
     MTX_GRD_INIT(&acq_info_lock);
+
+    SignalHandlerAddCallback(MutexGuardSignalHandler, SIG_HDL_ALL_SIGNALS_MASK);
 }
 
-
 /// @brief Destroys shared resources mutex lock. 
-static void __attribute__((destructor)) MutexGuardEndModule(void)
+static void __attribute__((destructor)) MutexGuardUnload(void)
 {
+    MutexGuardFreeResources();
+}
+
+/// @param signum Frees previously allocated resources.
+static void MutexGuardFreeResources(void)
+{
+    if(resources_freed)
+        return;
+    
+    resources_freed = true;
+
     MTX_GRD_DESTROY(&acq_info_lock);
+}
+
+/// @brief Handles incoming signal.
+/// @param sig_num Target signal number.
+static void MutexGuardSignalHandler(const int sig_num)
+{
+    MutexGuardFreeResources();
 }
 
 /// @brief Returns Mutex Guard error code.
@@ -826,15 +855,23 @@ int MutexGuardLock(MTX_GRD* p_mutex_guard, void* restrict address, const uint64_
 
     if(ret_lock)
     {
-        if(verbosity_level & MTX_GRD_VERBOSITY_LOCK_ERROR)
-            MutexGuardPrintLockError(&target_mutex_acq_location, &p_mutex_guard->mutex, timeout_ns, ret_lock);
+        if(p_mutex_guard == &acq_info_lock)
+        {
+            mutex_guard_errno           = MTX_GRD_ERR_INTERNAL_LOCK_ERROR;
+            mutex_guard_lock_error_code = ret_lock;
+        }
+        else
+        {
+            if(verbosity_level & MTX_GRD_VERBOSITY_LOCK_ERROR)
+                MutexGuardPrintLockError(&target_mutex_acq_location, &p_mutex_guard->mutex, timeout_ns, ret_lock);
 
-        mutex_guard_errno           = MTX_GRD_ERR_LOCK_ERROR;
-        mutex_guard_lock_error_code = ret_lock;
+            mutex_guard_errno           = MTX_GRD_ERR_LOCK_ERROR;
+            mutex_guard_lock_error_code = ret_lock;
 
-        MTX_GRD_LOCK_SC(&acq_info_lock, p_acq_info_lock);
-        memcpy(&last_failed_mutex_guard, p_mutex_guard, sizeof(MTX_GRD));
-        
+            MTX_GRD_LOCK_SC(&acq_info_lock, p_acq_info_lock);
+            memcpy(&last_failed_mutex_guard, p_mutex_guard, sizeof(MTX_GRD));
+        }
+
         return ret_lock;
     }
 
