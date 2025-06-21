@@ -45,7 +45,7 @@ LOCAL_SHELL_TEST	:= sh/test.sh
 
 # Debug flags
 ifeq ("$(VERSION_MODE)", "DEBUG")
-	DEBUG_INFO := -g -Wall
+	DEBUG_INFO := -g -Wall -fsanitize=address
 else
 	DEBUG_INFO :=
 endif
