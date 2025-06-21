@@ -49,6 +49,11 @@
             lib_name="pthread"
             package="libc6-dev"
         />
+        <Binary_Utilities
+            type="APT_package"
+            lib_name=""
+            package="binutils"
+        />
     </deps>
 
     <!-- Tests -->
