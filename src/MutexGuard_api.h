@@ -42,6 +42,7 @@ typedef struct C_MUTEX_GUARD_ALIGNED
     pthread_mutexattr_t     mutex_attr;
     MTX_GRD_ACQ_LOCATION    mutex_acq_location;
     unsigned long long      lock_counter;
+    pthread_mutex_t         ctrl_mutex;
     void*                   additional_data;
 } MTX_GRD;
 
