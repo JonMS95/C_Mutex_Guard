@@ -860,6 +860,8 @@ int MutexGuardLock(MTX_GRD* p_mutex_guard, void* restrict address, const uint64_
 
     mutex_guard_lock_error_code = 0;
 
+    pthread_mutex_lock(&p_mutex_guard->ctrl_mutex);
+
     MutexGuardStoreNewAddress(p_mutex_guard, address);
 
     p_mutex_guard->mutex_acq_location.thread_id = pthread_self();
@@ -871,6 +873,8 @@ int MutexGuardLock(MTX_GRD* p_mutex_guard, void* restrict address, const uint64_
 
     if(verbosity_level & MTX_GRD_VERBOSITY_BT)
         MutexGuardShowBacktrace(&p_mutex_guard->mutex, true);
+
+    pthread_mutex_unlock(&p_mutex_guard->ctrl_mutex);
 
     return ret_lock;
 }
