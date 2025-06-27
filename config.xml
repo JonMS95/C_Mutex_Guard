@@ -37,13 +37,6 @@
 
     <!-- Dependencies -->
     <deps Dest="deps">
-        <C_Signal_Handler
-            version_major="1"
-            version_minor="0"
-            version_mode="DEBUG"
-            local_path="~/Desktop/scripts/C/C_Signal_Handler"
-            URL="https://github.com/JonMS95/C_Signal_Handler"
-        />
         <Posix_Threads
             type="APT_package"
             lib_name="pthread"
