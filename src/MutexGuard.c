@@ -171,6 +171,8 @@ static void MutexGuardShowBacktrace(const pthread_mutex_t* restrict p_locked_mut
 
 /*********** Private variables ***********/
 
+/// @brief Exit current program if any internal (ctrl) mutex lock, unlock, int or destroy procedure fails.
+static bool ctrl_mutex_exit_if_error;
 /// @brief Variable in which data belonging to a mutex that failed to be locked is meant to be copied.
 static MTX_GRD last_failed_mutex_guard = {0};
 /// @brief Verbosity level holding variable.
@@ -218,6 +220,7 @@ static const char* error_str_table[MTX_GRD_ERR_MAX - MTX_GRD_ERR_MIN + 1] =
 static void __attribute__((constructor)) MutexGuardLoad(void)
 {
     MutexGuardSetPrintStatus(MTX_GRD_VERBOSITY_SILENT);
+    MutexGuardSetInternalErrMode(false);
 }
 
 /// @brief Returns Mutex Guard error code.
@@ -271,6 +274,13 @@ void MutexGuardPrintError(const char* restrict custom_error_msg)
             (msg_exists ? custom_error_msg : "" )   ,
             (msg_exists ? ": " : "" )               ,
             MTX_GRD_GET_LAST_ERR_STR                );
+}
+
+/// @brief Tells whether should the program be terminated on internal mutex management error.
+/// @param mode Target mode (T/F). True -> ends program forcefully on error. False -> keeps trying.
+void MutexGuardSetInternalErrMode(const bool mode)
+{
+    ctrl_mutex_exit_if_error = mode;
 }
 
 /// @brief Sets verbosity level.
@@ -339,9 +349,9 @@ static int MutexGuardInitCtrl(MTX_GRD* restrict p_mutex_guard)
         return -1;
     }
 
-    int set_type    = pthread_mutexattr_settype(      &ctrl_mutex_attr, PTHREAD_MUTEX_ERRORCHECK  );
-    int set_proto   = pthread_mutexattr_setprotocol(  &ctrl_mutex_attr, PTHREAD_PRIO_NONE         );
-    int set_pshared = pthread_mutexattr_setpshared(   &ctrl_mutex_attr, PTHREAD_PROCESS_PRIVATE   );
+    int set_type    = pthread_mutexattr_settype(      &ctrl_mutex_attr, PTHREAD_MUTEX_RECURSIVE );
+    int set_proto   = pthread_mutexattr_setprotocol(  &ctrl_mutex_attr, PTHREAD_PRIO_NONE       );
+    int set_pshared = pthread_mutexattr_setpshared(   &ctrl_mutex_attr, PTHREAD_PROCESS_PRIVATE );
     
     if(set_type || set_proto || set_pshared)
     {
@@ -1091,7 +1101,6 @@ void MutexGuardReleaseMutexCleanup(void* ptr)
     }
     
     MutexGuardUnlock(*(MTX_GRD**)ptr);
-    *(MTX_GRD**)ptr = NULL;
 }
 
 /// @brief Destroys mutex attribute within given mutex guard.
@@ -1124,6 +1133,8 @@ int MutexGuardDestroy(MTX_GRD* restrict p_mtx_grd)
         return -1;
     }
 
+    pthread_mutex_lock(&p_mtx_grd->ctrl_mutex);
+
     int original_lock_counter = p_mtx_grd->lock_counter;
 
     int ret_unlock = 0;
@@ -1132,14 +1143,20 @@ int MutexGuardDestroy(MTX_GRD* restrict p_mtx_grd)
         ret_unlock = MutexGuardUnlock(p_mtx_grd);
         
         if(ret_unlock < 0)
+        {
+            pthread_mutex_unlock(&p_mtx_grd->ctrl_mutex);
             return -2;
+        }
     }
     
     int mutex_destroy = pthread_mutex_destroy(&p_mtx_grd->mutex);
     
+    pthread_mutex_unlock(&p_mtx_grd->ctrl_mutex);
     if(mutex_destroy)
         mutex_guard_errno = MTX_GRD_ERR_STD_ERROR_CODE;
     
+    pthread_mutex_destroy(&p_mtx_grd->ctrl_mutex);
+
     return mutex_destroy;
 }
 
