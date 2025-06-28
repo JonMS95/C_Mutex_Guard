@@ -9,6 +9,7 @@ extern "C" {
 
 #include <stdint.h>
 #include <pthread.h>
+#include <stdbool.h>
 
 /*****************************************/
 
@@ -153,6 +154,10 @@ C_MUTEX_GUARD_API const char* MutexGuardGetErrorString(const int error_code);
 /// @brief Prints error.
 /// @param custom_error_msg String to be copied to.
 C_MUTEX_GUARD_API void MutexGuardPrintError(const char* restrict custom_error_msg);
+
+/// @brief Tells whether should the program be terminated on internal mutex management error.
+/// @param mode Target mode (T/F). True -> ends program forcefully on error. False -> keeps trying.
+C_MUTEX_GUARD_API void MutexGuardSetInternalErrMode(const bool mode);
 
 /// @brief Sets verbosity level.
 /// @param target_verbosity_level Target verbosity level (silent, lock errors, backtrace or both). 
