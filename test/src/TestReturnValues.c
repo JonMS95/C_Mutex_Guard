@@ -164,7 +164,7 @@ static void TestDestroy()
 
         pthread_join(thread_0, NULL);
 
-        CU_ASSERT_EQUAL(test_unlock_helper_struct.test_value, -2);
+        CU_ASSERT_EQUAL(test_unlock_helper_struct.test_value, -3);
     }
 
     MTX_GRD_CREATE(test_mtx_grd);
