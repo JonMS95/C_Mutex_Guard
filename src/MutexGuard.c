@@ -361,11 +361,19 @@ static int MutexGuardInitCtrl(MTX_GRD* restrict p_mutex_guard)
 
     if(pthread_mutex_init(&p_mutex_guard->ctrl_mutex, &ctrl_mutex_attr))
     {
+        printf("Error initializing control mutex. <%d>\r\n", __LINE__);
         mutex_guard_errno = MTX_GRD_ERR_INTERNAL_MUTEX_ERROR;
+        
+        pthread_mutexattr_destroy(&ctrl_mutex_attr);
+
         return -3;
     }
     
-    pthread_mutexattr_destroy(&ctrl_mutex_attr);
+    if(pthread_mutexattr_destroy(&ctrl_mutex_attr))
+    {
+        mutex_guard_errno = MTX_GRD_ERR_INTERNAL_MUTEX_ERROR;
+        return -4;
+    }
 
     return 0;
 }
@@ -390,9 +398,15 @@ int MutexGuardInit(MTX_GRD* restrict p_mutex_guard)
     if(pthread_mutex_init(&p_mutex_guard->mutex, &p_mutex_guard->mutex_attr))
     {
         if(pthread_mutex_destroy(&p_mutex_guard->ctrl_mutex))
-            mutex_guard_errno = MTX_GRD_ERR_STD_ERROR_CODE;
-        else
+        {
+            printf("Error locking control mutex. <%d>\r\n", __LINE__);
             mutex_guard_errno = MTX_GRD_ERR_INTERNAL_MUTEX_ERROR;
+        }
+        else
+        {
+            mutex_guard_errno = MTX_GRD_ERR_STD_ERROR_CODE;
+        }
+
         return -3;
     }
 
@@ -497,9 +511,17 @@ static int MutexGuardCopyLockError( MTX_GRD* restrict p_mutex_guard ,
 
     MTX_GRD_ACQ_LOCATION mutex_guard_acq_location = {};
 
-    pthread_mutex_lock(&p_mutex_guard->ctrl_mutex);
+    if(pthread_mutex_lock(&p_mutex_guard->ctrl_mutex))
+    {
+        mutex_guard_errno = MTX_GRD_ERR_INTERNAL_MUTEX_ERROR;
+        printf("Error locking control mutex. <%d>\r\n", __LINE__);
+    }
     memcpy(&mutex_guard_acq_location, &p_mutex_guard->mutex_acq_location, sizeof(MTX_GRD_ACQ_LOCATION));
-    pthread_mutex_unlock(&p_mutex_guard->ctrl_mutex);
+    if(pthread_mutex_unlock(&p_mutex_guard->ctrl_mutex))
+    {
+        mutex_guard_errno = MTX_GRD_ERR_INTERNAL_MUTEX_ERROR;
+        printf("Error unlocking control mutex. <%d>\r\n", __LINE__);
+    }
 
     MutexGuardPrintLockErrorCause(  &mutex_guard_acq_location                           ,
                                     &p_mutex_guard->mutex                               ,
@@ -794,9 +816,17 @@ int MutexGuardLock(MTX_GRD* p_mutex_guard, void* restrict address, const uint64_
     MTX_GRD_ACQ_LOCATION target_mutex_acq_location;
 
     // The mutex lock below is performed for other threads not to coincidentally modify the content within the provided MTX_GRD variable.
-    pthread_mutex_lock(&p_mutex_guard->ctrl_mutex);
+    if(pthread_mutex_lock(&p_mutex_guard->ctrl_mutex))
+    {
+        printf("Error locking control mutex. <%d>\r\n", __LINE__);
+        mutex_guard_errno = MTX_GRD_ERR_INTERNAL_MUTEX_ERROR;
+    }
     memcpy(&target_mutex_acq_location, &p_mutex_guard->mutex_acq_location, sizeof(MTX_GRD_ACQ_LOCATION));
-    pthread_mutex_unlock(&p_mutex_guard->ctrl_mutex);
+    if(pthread_mutex_unlock(&p_mutex_guard->ctrl_mutex))
+    {
+        printf("Error unlocking control mutex. <%d>\r\n", __LINE__);
+        mutex_guard_errno = MTX_GRD_ERR_INTERNAL_MUTEX_ERROR;
+    }
 
     int ret_lock;
 
@@ -861,16 +891,29 @@ int MutexGuardLock(MTX_GRD* p_mutex_guard, void* restrict address, const uint64_
         mutex_guard_errno           = MTX_GRD_ERR_LOCK_ERROR;
         mutex_guard_lock_error_code = ret_lock;
 
-        pthread_mutex_lock(&p_mutex_guard->ctrl_mutex);
+        if(pthread_mutex_lock(&p_mutex_guard->ctrl_mutex))
+        {
+            printf("Error locking control mutex. <%d>\r\n", __LINE__);
+            mutex_guard_errno = MTX_GRD_ERR_INTERNAL_MUTEX_ERROR;
+        }
         memcpy(&last_failed_mutex_guard, p_mutex_guard, sizeof(MTX_GRD));
-        pthread_mutex_unlock(&p_mutex_guard->ctrl_mutex);
+        if(pthread_mutex_unlock(&p_mutex_guard->ctrl_mutex))
+        {
+            printf("Error unlocking control mutex. <%d>\r\n", __LINE__);
+            mutex_guard_errno = MTX_GRD_ERR_INTERNAL_MUTEX_ERROR;
+        }
 
         return ret_lock;
     }
 
     mutex_guard_lock_error_code = 0;
 
-    pthread_mutex_lock(&p_mutex_guard->ctrl_mutex);
+    
+    if(pthread_mutex_lock(&p_mutex_guard->ctrl_mutex))
+    {
+        printf("Error locking control mutex. <%d>\r\n", __LINE__);
+        mutex_guard_errno = MTX_GRD_ERR_INTERNAL_MUTEX_ERROR;
+    }
 
     MutexGuardStoreNewAddress(p_mutex_guard, address);
 
@@ -884,7 +927,11 @@ int MutexGuardLock(MTX_GRD* p_mutex_guard, void* restrict address, const uint64_
     if(verbosity_level & MTX_GRD_VERBOSITY_BT)
         MutexGuardShowBacktrace(&p_mutex_guard->mutex, true);
 
-    pthread_mutex_unlock(&p_mutex_guard->ctrl_mutex);
+    if(pthread_mutex_unlock(&p_mutex_guard->ctrl_mutex))
+    {
+        printf("Error unlocking control mutex. <%d>\r\n", __LINE__);
+        mutex_guard_errno = MTX_GRD_ERR_INTERNAL_MUTEX_ERROR;
+    }
 
     return ret_lock;
 }
@@ -1056,7 +1103,11 @@ int MutexGuardUnlock(MTX_GRD* restrict p_mtx_grd)
         return -3;
     }
 
-    pthread_mutex_lock(&p_mtx_grd->ctrl_mutex);
+    if(pthread_mutex_lock(&p_mtx_grd->ctrl_mutex))
+    {
+        mutex_guard_errno = MTX_GRD_ERR_INTERNAL_MUTEX_ERROR;
+        printf("Error locking control mutex. <%d>\r\n", __LINE__);
+    }
 
     int ret_unlock = pthread_mutex_unlock(&p_mtx_grd->mutex);
     
@@ -1065,7 +1116,11 @@ int MutexGuardUnlock(MTX_GRD* restrict p_mtx_grd)
         mutex_guard_lock_error_code = ret_unlock;
         mutex_guard_errno           = MTX_GRD_ERR_STD_ERROR_CODE;
         
-        pthread_mutex_unlock(&p_mtx_grd->ctrl_mutex);
+        if(pthread_mutex_unlock(&p_mtx_grd->ctrl_mutex))
+        {
+            printf("Error unlocking control mutex. <%d>\r\n", __LINE__);
+            mutex_guard_errno = MTX_GRD_ERR_INTERNAL_MUTEX_ERROR;
+        }
 
         return ret_unlock;
     }
@@ -1085,8 +1140,12 @@ int MutexGuardUnlock(MTX_GRD* restrict p_mtx_grd)
     if(!p_mtx_grd->lock_counter)
         memset(&p_mtx_grd->mutex_acq_location, 0, sizeof(MTX_GRD_ACQ_LOCATION));
 
-    pthread_mutex_unlock(&p_mtx_grd->ctrl_mutex);
-
+    if(pthread_mutex_unlock(&p_mtx_grd->ctrl_mutex))
+    {
+        printf("Error unlocking control mutex. <%d>\r\n", __LINE__);
+        mutex_guard_errno = MTX_GRD_ERR_INTERNAL_MUTEX_ERROR;
+    }
+    
     return ret_unlock;
 }
 
@@ -1133,7 +1192,12 @@ int MutexGuardDestroy(MTX_GRD* restrict p_mtx_grd)
         return -1;
     }
 
-    pthread_mutex_lock(&p_mtx_grd->ctrl_mutex);
+    if(pthread_mutex_lock(&p_mtx_grd->ctrl_mutex))
+    {
+        mutex_guard_errno = MTX_GRD_ERR_INTERNAL_MUTEX_ERROR;
+        printf("Error locking control mutex. <%d>\r\n", __LINE__);
+        return -2;
+    }
 
     int original_lock_counter = p_mtx_grd->lock_counter;
 
@@ -1144,18 +1208,32 @@ int MutexGuardDestroy(MTX_GRD* restrict p_mtx_grd)
         
         if(ret_unlock < 0)
         {
-            pthread_mutex_unlock(&p_mtx_grd->ctrl_mutex);
-            return -2;
+            if(pthread_mutex_unlock(&p_mtx_grd->ctrl_mutex))
+            {
+                printf("Error unlocking control mutex. <%d>\r\n", __LINE__);
+                mutex_guard_errno = MTX_GRD_ERR_INTERNAL_MUTEX_ERROR;
+            }
+
+            return -3;
         }
     }
     
     int mutex_destroy = pthread_mutex_destroy(&p_mtx_grd->mutex);
     
-    pthread_mutex_unlock(&p_mtx_grd->ctrl_mutex);
+    if(pthread_mutex_unlock(&p_mtx_grd->ctrl_mutex))
+    {
+        printf("Error unlocking control mutex. <%d>\r\n", __LINE__);
+        mutex_guard_errno = MTX_GRD_ERR_INTERNAL_MUTEX_ERROR;
+    }
+    
     if(mutex_destroy)
         mutex_guard_errno = MTX_GRD_ERR_STD_ERROR_CODE;
     
-    pthread_mutex_destroy(&p_mtx_grd->ctrl_mutex);
+    if(pthread_mutex_destroy(&p_mtx_grd->ctrl_mutex))
+    {
+        printf("Error destroying control mutex. <%d>\r\n", __LINE__);
+        mutex_guard_errno = MTX_GRD_ERR_INTERNAL_MUTEX_ERROR;
+    }
 
     return mutex_destroy;
 }
