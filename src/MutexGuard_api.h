@@ -16,8 +16,7 @@ extern "C" {
 /*********** Define statements ***********/
 
 #define C_MUTEX_GUARD_API                   __attribute__((visibility("default")))
-#define C_MUTEX_GUARD_AINLINE               inline __attribute__((always_inline))
-#define C_MUTEX_GUARD_NINLINE               __attribute__((noinline))
+#define C_MUTEX_GUARD_NOINLINE              __attribute__((noinline))
 #define C_MUTEX_GUARD_ALIGNED               __attribute__((aligned(sizeof(size_t))))
 #define C_MUTEX_GUARD_DESTROY_ATTR_CLEANUP  __attribute__((cleanup(MutexGuardDestroyAttrCleanup)))
 #define C_MUTEX_GUARD_DESTROY_CLEANUP       __attribute__((cleanup(MutexGuardDestroyMutexCleanup)))
@@ -199,12 +198,10 @@ C_MUTEX_GUARD_API int MutexGuardAttrInit(   MTX_GRD* restrict p_mutex_guard ,
 /// @param priority Mutex priority (NONE, INHERIT, PROTECT).
 /// @param proc_sharing Share mutex with other processes (PRIVATE, SHARED).
 /// @return Pointer to mutex guard structure if succeeded, NULL otherwise.
-C_MUTEX_GUARD_API C_MUTEX_GUARD_AINLINE MTX_GRD* MutexGuardAttrInitAddr(MTX_GRD* restrict p_mutex_guard ,
-                                                                        const int mutex_type            , 
-                                                                        const int priority              ,
-                                                                        const int proc_sharing          ) {
-    return (MutexGuardAttrInit(p_mutex_guard, mutex_type, priority, proc_sharing) ? NULL : p_mutex_guard);
-}
+C_MUTEX_GUARD_API MTX_GRD* MutexGuardAttrInitAddr(  MTX_GRD* restrict p_mutex_guard ,
+                                                    const int mutex_type            , 
+                                                    const int priority              ,
+                                                    const int proc_sharing          );
 
 /// @brief Initializes mutex.
 /// @param p_mutex_guard Pointer to mutex containing mutex guard structure.
@@ -214,9 +211,7 @@ C_MUTEX_GUARD_API int MutexGuardInit(MTX_GRD* restrict p_mutex_guard);
 /// @brief MutexGuardInit function wrapper.
 /// @param p_mutex_guard Pointer to mutex guard structure.
 /// @return Pointer to given mutex guard structure if succeeded, NULL otherwise.
-C_MUTEX_GUARD_API C_MUTEX_GUARD_AINLINE MTX_GRD* MutexGuardInitAddr(MTX_GRD* restrict p_mutex_guard) {
-    return (MutexGuardInit(p_mutex_guard) ? NULL : p_mutex_guard);
-}
+C_MUTEX_GUARD_API MTX_GRD* MutexGuardInitAddr(MTX_GRD* restrict p_mutex_guard);
 
 /// @brief Locks target mutex.
 /// @param p_mutex_guard Pointer to mutex guard structure.
@@ -235,16 +230,14 @@ C_MUTEX_GUARD_API int MutexGuardLock(   MTX_GRD* p_mutex_guard      ,
 /// @param timeout_ns Target timeout value (if any, in nanoseconds).
 /// @param lock_type Lock type (TR_LOCK, LOCK, TIMED_LOCK, PERIODIC_TIMED_LOCK).
 /// @return Pointer to given mutex guard structure if succeeded, NULL otherwise.
-C_MUTEX_GUARD_API C_MUTEX_GUARD_AINLINE MTX_GRD* MutexGuardLockAddr(MTX_GRD* restrict p_mutex_guard ,
+C_MUTEX_GUARD_API MTX_GRD* MutexGuardLockAddr(MTX_GRD* restrict p_mutex_guard ,
                                                                     void* restrict address          ,
                                                                     const uint64_t timeout_ns       ,
-                                                                    const int lock_type             ) {
-    return (MutexGuardLock(p_mutex_guard, address, timeout_ns, lock_type) ? NULL : p_mutex_guard);
-}
+                                                                    const int lock_type             );
 
 /// @brief Returns address within the program of line in which the current function was called. Meant to be used in macros.
 /// @return Current function calling address.
-C_MUTEX_GUARD_API C_MUTEX_GUARD_NINLINE void* MutexGuardGetFuncRetAddr(void);
+C_MUTEX_GUARD_API C_MUTEX_GUARD_NOINLINE void* MutexGuardGetFuncRetAddr(void);
 
 /// @brief Unlocks target mutex.
 /// @param p_mtx_grd Pointer to mutex guard structure.

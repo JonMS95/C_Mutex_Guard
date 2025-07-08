@@ -484,6 +484,20 @@ static int MutexGuardDestroyCtrlMutex(MTX_GRD* restrict p_mutex_guard, const boo
     MTX_GRD_CTRL_MUTEX_CONTROL_FLOW(pthread_mutex_destroy(&p_mutex_guard->ctrl_mutex));
 }
 
+/// @brief MutexGuardAttrInit function wrapper.
+/// @param p_mutex_guard Pointer to mutex guard structure.
+/// @param mutex_type Mutex type (NORMAL, ERRORCHECK, RECURSIVE, DEFAULT).
+/// @param priority Mutex priority (NONE, INHERIT, PROTECT).
+/// @param proc_sharing Share mutex with other processes (PRIVATE, SHARED).
+/// @return Pointer to mutex guard structure if succeeded, NULL otherwise.
+MTX_GRD* MutexGuardAttrInitAddr(MTX_GRD* restrict p_mutex_guard ,
+                                const int mutex_type            , 
+                                const int priority              ,
+                                const int proc_sharing          )
+{
+    return (MutexGuardAttrInit(p_mutex_guard, mutex_type, priority, proc_sharing) ? NULL : p_mutex_guard);
+}
+
 /// @brief Initializes mutex.
 /// @param p_mutex_guard Pointer to mutex containing mutex guard structure.
 /// @return 0 if succeeded, != 0 otherwise.
@@ -512,6 +526,14 @@ int MutexGuardInit(MTX_GRD* restrict p_mutex_guard)
     }
 
     return 0;
+}
+
+/// @brief Initializes mutex.
+/// @param p_mutex_guard Pointer to mutex containing mutex guard structure.
+/// @return 0 if succeeded, != 0 otherwise.
+MTX_GRD* MutexGuardInitAddr(MTX_GRD* restrict p_mutex_guard)
+{
+    return (MutexGuardInit(p_mutex_guard) ? NULL : p_mutex_guard);
 }
 
 /// @brief Stores a new lock address.
@@ -1019,6 +1041,14 @@ int MutexGuardLock(MTX_GRD* p_mutex_guard, void* restrict address, const uint64_
     return ret_lock;
 }
 
+C_MUTEX_GUARD_API MTX_GRD* MutexGuardLockAddr(  MTX_GRD* restrict p_mutex_guard ,
+                                                void* restrict address          ,
+                                                const uint64_t timeout_ns       ,
+                                                const int lock_type             )
+{
+    return (MutexGuardLock(p_mutex_guard, address, timeout_ns, lock_type) ? NULL : p_mutex_guard);
+}
+
 /// @brief Gets base address of the executable in which a mutex lock error has happened.
 /// @return 0 if succeeded, < 0 otherwise.
 static size_t MutexGuardGetExecutableBaseddress(void)
@@ -1158,7 +1188,7 @@ static int MutexGuardPrintFileAndLineFromAddr(  const void* restrict addr       
 
 /// @brief Returns address within the program of line in which the current function was called. Meant to be used in macros.
 /// @return Current function calling address.
-C_MUTEX_GUARD_NINLINE void* MutexGuardGetFuncRetAddr(void)
+C_MUTEX_GUARD_NOINLINE void* MutexGuardGetFuncRetAddr(void)
 {
     return __builtin_return_address(0); 
 }
