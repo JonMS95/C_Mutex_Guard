@@ -69,6 +69,16 @@ typedef enum
     MTX_GRD_VERBOSITY_MAX       = MTX_GRD_VERBOSITY_ALL     ,
 } MTX_GRD_VERBOSITY_LEVEL;
 
+/// @brief Available internal error management modes.
+typedef enum
+{
+    MTX_GRD_INT_ERR_MGMT_KEEP_TRYING    = 0                                     ,
+    MTX_GRD_INT_ERR_MGMT_ABORT_ON_ERROR                                         ,
+    MTX_GRD_INT_ERR_MGMT_FORCE_ONE_SHOT                                         ,
+    MTX_GRD_INT_ERR_MGMT_MIN            = MTX_GRD_INT_ERR_MGMT_KEEP_TRYING      ,
+    MTX_GRD_INT_ERR_MGMT_MAX            = MTX_GRD_INT_ERR_MGMT_FORCE_ONE_SHOT   ,
+} MTX_GRD_INT_ERR_MGMT;
+
 /*****************************************/
 
 /**************** Macros *****************/
@@ -155,9 +165,13 @@ C_MUTEX_GUARD_API const char* MutexGuardGetErrorString(const int error_code);
 /// @param custom_error_msg String to be copied to.
 C_MUTEX_GUARD_API void MutexGuardPrintError(const char* restrict custom_error_msg);
 
-/// @brief Tells whether should the program be terminated on internal mutex management error.
-/// @param mode Target mode (T/F). True -> ends program forcefully on error. False -> keeps trying.
-C_MUTEX_GUARD_API void MutexGuardSetInternalErrMode(const bool mode);
+/// @brief Establishes how should the program behave on internal mutex management error.
+/// @param mode Target mode (check available values on MTX_GRD_INT_ERR_MGMT).
+C_MUTEX_GUARD_API int MutexGuardSetInternalErrMode(const MTX_GRD_INT_ERR_MGMT mgmt_mode);
+
+/// @brief Retrieves current internal error management mode.
+/// @return Currently assigned internal error management mode.
+C_MUTEX_GUARD_API MTX_GRD_INT_ERR_MGMT MutexGuardGetInternalErrMode(void);
 
 /// @brief Sets verbosity level.
 /// @param target_verbosity_level Target verbosity level (silent, lock errors, backtrace or both). 
