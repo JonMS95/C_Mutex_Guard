@@ -329,6 +329,17 @@ static void TestDestroy()
     }
 }
 
+static void TestSetInternalErrMode()
+{
+    MutexGuardSetInternalErrMode(MTX_GRD_INT_ERR_MGMT_MIN - 1);
+    CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1020);
+    CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "Provided invalid internal mutex management mode");
+
+    MutexGuardSetInternalErrMode(MTX_GRD_INT_ERR_MGMT_MAX + 1);
+    CU_ASSERT_EQUAL(MutexGuardGetErrorCode(), 1020);
+    CU_ASSERT_STRING_EQUAL(MTX_GRD_GET_LAST_ERR_STR, "Provided invalid internal mutex management mode");
+}
+
 int CreateErrorCodeTestsSuite()
 {
     CU_pSuite pErrorCodeTestsSuite;
@@ -345,6 +356,7 @@ int CreateErrorCodeTestsSuite()
     ADD_TEST_2_SUITE(pErrorCodeTestsSuite, TestUnlock);
     ADD_TEST_2_SUITE(pErrorCodeTestsSuite, TestAttrDestroy);
     ADD_TEST_2_SUITE(pErrorCodeTestsSuite, TestDestroy);
+    ADD_TEST_2_SUITE(pErrorCodeTestsSuite, TestSetInternalErrMode);
 
     return 0;
 }
