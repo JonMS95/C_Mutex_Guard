@@ -1267,8 +1267,10 @@ int MutexGuardDestroy(MTX_GRD* restrict p_mtx_grd)
     }
 
     if(MutexGuardLockCtrlMutex(p_mtx_grd, false))
+    {
         mutex_guard_errno = MTX_GRD_ERR_INTERNAL_MUTEX_ERROR;
         return -2;
+    }
 
     int original_lock_counter = p_mtx_grd->lock_counter;
 
