@@ -2,8 +2,8 @@
 <config>
     <Project_data
         version_major="1"
-        version_minor="0"
-        version_mode="RELEASE"
+        version_minor="1"
+        version_mode="DEBUG"
         URL="https://github.com/JonMS95/C_Mutex_Guard"
         type="library"
         language="C"
@@ -13,6 +13,10 @@
     <Directories>
         <lib/>
         <API/>
+        <deps>
+            <lib/>
+            <inc/>
+        </deps>
         <test>
             <deps>
                 <inc/>
@@ -25,18 +29,23 @@
     <!-- Common shell files location -->
     <Common_shell_files
         version_major="1"
-        version_minor="3"
+        version_minor="4"
         version_mode="RELEASE"
         local_path="~/C_Common_shell_files"
         URL="https://github.com/JonMS95/C_Common_shell_files"
     />
 
     <!-- Dependencies -->
-    <deps Dest="">
+    <deps Dest="deps">
         <Posix_Threads
             type="APT_package"
             lib_name="pthread"
             package="libc6-dev"
+        />
+        <Binary_Utilities
+            type="APT_package"
+            lib_name=""
+            package="binutils"
         />
     </deps>
 
@@ -60,15 +69,22 @@
             />
             <C_Severity_Log
                 version_major="2"
-                version_minor="1"
-                version_mode="RELEASE"
+                version_minor="3"
+                version_mode="DEBUG"
                 URL="https://github.com/JonMS95/C_Severity_Log"
-                local_path="~/C_Severity_Log"
+                local_path="~/Desktop/scripts/C/C_Severity_Log"
+            />
+            <C_Signal_Handler
+                version_major="1"
+                version_minor="0"
+                version_mode="DEBUG"
+                local_path="~/Desktop/scripts/C/C_Signal_Handler"
+                URL="https://github.com/JonMS95/C_Signal_Handler"
             />
             <C_Mutex_Guard
                 version_major="1"
-                version_minor="0"
-                version_mode="RELEASE"
+                version_minor="1"
+                version_mode="DEBUG"
                 local_path="."
                 URL="https://github.com/JonMS95/C_Mutex_Guard"
             />

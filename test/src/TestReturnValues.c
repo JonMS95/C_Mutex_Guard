@@ -164,13 +164,36 @@ static void TestDestroy()
 
         pthread_join(thread_0, NULL);
 
-        CU_ASSERT_EQUAL(test_unlock_helper_struct.test_value, -2);
+        CU_ASSERT_EQUAL(test_unlock_helper_struct.test_value, -3);
     }
 
     MTX_GRD_CREATE(test_mtx_grd);
     MTX_GRD_INIT(&test_mtx_grd);
 
     CU_ASSERT_EQUAL(MutexGuardDestroy(&test_mtx_grd), 0);
+}
+
+static void TestSetInternalErrMode()
+{
+    CU_ASSERT_EQUAL(MutexGuardSetInternalErrMode(MTX_GRD_INT_ERR_MGMT_MIN - 1), -1);
+    CU_ASSERT_EQUAL(MutexGuardSetInternalErrMode(MTX_GRD_INT_ERR_MGMT_MAX + 1), -1);
+
+    CU_ASSERT_EQUAL(MutexGuardSetInternalErrMode(MTX_GRD_INT_ERR_MGMT_KEEP_TRYING),     0);
+    CU_ASSERT_EQUAL(MutexGuardSetInternalErrMode(MTX_GRD_INT_ERR_MGMT_ABORT_ON_ERROR),  0);
+    CU_ASSERT_EQUAL(MutexGuardSetInternalErrMode(MTX_GRD_INT_ERR_MGMT_FORCE_ONE_SHOT),  0);
+}
+
+static void TestGetInternalErrMode()
+{
+    CU_ASSERT_EQUAL(MutexGuardGetInternalErrMode(), MTX_GRD_INT_ERR_MGMT_FORCE_ONE_SHOT);
+
+    for(int int_err_mgmt_mode = MTX_GRD_INT_ERR_MGMT_MIN; int_err_mgmt_mode <= MTX_GRD_INT_ERR_MGMT_MAX; int_err_mgmt_mode++)
+    {
+        MutexGuardSetInternalErrMode(int_err_mgmt_mode);
+        CU_ASSERT_EQUAL(MutexGuardGetInternalErrMode(), int_err_mgmt_mode);
+    }
+
+    MutexGuardSetInternalErrMode(MTX_GRD_INT_ERR_MGMT_FORCE_ONE_SHOT);
 }
 
 int CreateReturnValueTestsSuite()
@@ -190,6 +213,8 @@ int CreateReturnValueTestsSuite()
     ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestUnlock);
     ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestAttrDestroy);
     ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestDestroy);
+    ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestSetInternalErrMode);
+    ADD_TEST_2_SUITE(pReturnValueTestsSuite, TestGetInternalErrMode);
 
     return 0;
 }

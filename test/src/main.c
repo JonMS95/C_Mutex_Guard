@@ -24,6 +24,9 @@ int main()
     // Init severity log
     SeverityLogInitWithMask(1000, 0xFF);
 
+    // Modify internal mutex management mode (one shot).
+    MutexGuardSetInternalErrMode(MTX_GRD_INT_ERR_MGMT_FORCE_ONE_SHOT);
+
     // Unit tests
     if(CU_initialize_registry() != CUE_SUCCESS)
         return CU_get_error();
