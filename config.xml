@@ -3,7 +3,7 @@
     <Project_data
         version_major="1"
         version_minor="1"
-        version_mode="DEBUG"
+        version_mode="RELEASE"
         URL="https://github.com/JonMS95/C_Mutex_Guard"
         type="library"
         language="C"
@@ -52,7 +52,7 @@
     <!-- Tests -->
     <!-- Paths to dependency files for the testing executable. -->
     <test>
-        <deps Dest="test/deps">
+        <deps Dest="test/deps" Sorted="Yes">
             <Posix_Threads
                 type="APT_package"
                 lib_name="pthread"
@@ -70,21 +70,21 @@
             <C_Severity_Log
                 version_major="2"
                 version_minor="3"
-                version_mode="DEBUG"
+                version_mode="RELEASE"
                 URL="https://github.com/JonMS95/C_Severity_Log"
                 local_path="~/Desktop/scripts/C/C_Severity_Log"
             />
             <C_Signal_Handler
                 version_major="1"
                 version_minor="0"
-                version_mode="DEBUG"
+                version_mode="RELEASE"
                 local_path="~/Desktop/scripts/C/C_Signal_Handler"
                 URL="https://github.com/JonMS95/C_Signal_Handler"
             />
             <C_Mutex_Guard
                 version_major="1"
                 version_minor="1"
-                version_mode="DEBUG"
+                version_mode="RELEASE"
                 local_path="."
                 URL="https://github.com/JonMS95/C_Mutex_Guard"
             />
