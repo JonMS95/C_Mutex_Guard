@@ -58,13 +58,13 @@
                 version_minor="3"
                 version_mode="RELEASE"
                 URL="https://github.com/JonMS95/C_Severity_Log"
-                local_path="~/Desktop/scripts/C/C_Severity_Log"
+                local_path="~/C_Severity_Log"
             />
             <C_Signal_Handler
                 version_major="1"
                 version_minor="0"
                 version_mode="RELEASE"
-                local_path="~/Desktop/scripts/C/C_Signal_Handler"
+                local_path="~/C_Signal_Handler"
                 URL="https://github.com/JonMS95/C_Signal_Handler"
             />
             <C_Mutex_Guard
