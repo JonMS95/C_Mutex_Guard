@@ -65,7 +65,7 @@ In order to get some knowledge about how to use the library alongside its option
 By now, the application has only been tested in POSIX-compliant Linux distros. In these, many of the dependencies below may already come installed in the OS.
 In the following list, the minimum versions required (if any) by the library are listed.
 
-| Dependency                   | Purpose                                 | Minimum version |
+| Dependency                   | Purpose                                 | Tested version |
 | :--------------------------- | :-------------------------------------- |:-------------: |
 | [gcc][gcc-link]              | Compile                                 |11.4            |
 | [Bash][bash-link]            | Execute Bash/Shell scripts              |4.4             |
@@ -73,6 +73,7 @@ In the following list, the minimum versions required (if any) by the library are
 | [Git][git-link]              | Download GitHub dependencies            |2.34.1          |
 | [Xmlstarlet][xmlstarlet-link]| Parse [configuration file](config.xml)  |1.6.1           |
 | [CUnit][cunit-link]          | Unit tests                              |2.1-3           |
+| [libc][libc-link]            | Manage POSIX threads                    |2.35            |
 
 [gcc-link]:        https://gcc.gnu.org/
 [bash-link]:       https://www.gnu.org/software/bash/
@@ -80,6 +81,7 @@ In the following list, the minimum versions required (if any) by the library are
 [git-link]:        https://git-scm.com/
 [xmlstarlet-link]: https://xmlstar.sourceforge.net/
 [cunit-link]:      https://cunit.sourceforge.net/
+[libc-link]:       https://www.gnu.org/software/libc/
 
 Except for Make and Bash, the latest version of each of the remaining dependencies will be installed automatically if they have not been found beforehand. 
 
@@ -92,7 +94,7 @@ On top of the ones listed above, there are some *JMS* dependencies (libraries th
 | Dependency                                                              | Purpose                                  |
 | :---------------------------------------------------------------------- | :--------------------------------------- |
 | [C_Common_shell_files](https://github.com/JonMS95/C_Common_shell_files) | Process [configuration file](config.xml) |
-| [C_Severity_Log](https://github.com/JonMS95/C_Severity_Log)             | Show logs                                |
+| [C_Severity_Log](https://github.com/JonMS95/C_Severity_Log)             | Show logs during testing                 |
 
 
 ## Installation instructions <a id="installation-instructions"></a> 📓
