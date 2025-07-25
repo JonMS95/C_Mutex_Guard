@@ -74,6 +74,7 @@ In the following list, the minimum versions required (if any) by the library are
 | [Xmlstarlet][xmlstarlet-link]| Parse [configuration file](config.xml)  |1.6.1           |
 | [CUnit][cunit-link]          | Unit tests                              |2.1-3           |
 | [libc][libc-link]            | Manage POSIX threads                    |2.35            |
+| [binutils][binutils-link]    | Retrieve line and function from address |2.38            |
 
 [gcc-link]:        https://gcc.gnu.org/
 [bash-link]:       https://www.gnu.org/software/bash/
@@ -82,6 +83,7 @@ In the following list, the minimum versions required (if any) by the library are
 [xmlstarlet-link]: https://xmlstar.sourceforge.net/
 [cunit-link]:      https://cunit.sourceforge.net/
 [libc-link]:       https://www.gnu.org/software/libc/
+[binutils-link]:   https://www.gnu.org/software/binutils/
 
 Except for Make and Bash, the latest version of each of the remaining dependencies will be installed automatically if they have not been found beforehand. 
 
