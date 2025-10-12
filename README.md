@@ -25,7 +25,7 @@ Building this project has involved a deep understanding of:
 and the list goes on and on.
 
 The project itself is nothing but a library that wraps POSIX threads mutexes, by making them safer in many aspects. The library has been built around a custom struct (**MTX_GRD**) in which useful information about where and who locked the mutex in question (apart from the mutex itself and its attributes) is found.
-On to of that, errors can be retrieved, so it's especially helpful in cases in which mutex lock errors happen (such as deadlocks).
+On top of that, errors can be retrieved, so it's especially helpful in cases in which mutex lock errors happen (such as deadlocks).
 By now, it has been designed for it to be run on Linux distros (such as [Ubuntu](https://ubuntu.com/)). The resulting library is a *.so* file alongside a C language header (*.h*) file.
 
 
